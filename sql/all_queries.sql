@@ -1,6 +1,9 @@
 -- МирГПТ: все запросы дашборда
--- Параметры: date_from, date_to (задать перед запуском в DBeaver)
 -- Запустить все через Run Script (Alt+X), экспортировать каждую вкладку результатов в CSV
+
+-- !! ЗАДАТЬ ПЕРИОД ЗДЕСЬ !!
+\set date_from '2025-01-01'
+\set date_to   '2025-12-31'
 
 -- ══════════════════════════════════════════════════════════════════════
 -- 1. СВОДКА (users.csv)
@@ -12,11 +15,11 @@ users_stats AS (
     SELECT
         COUNT(DISTINCT u.id)                                                    AS total_users,
         COUNT(DISTINCT u.id) FILTER (
-            WHERE u.created_at BETWEEN :'date_from' AND :'date_to'
+            WHERE u.created_at BETWEEN :date_from AND :date_to
         )                                                                       AS new_users,
         ROUND(
             COUNT(DISTINCT (u.id::text || DATE(m.created_at)::text))::numeric
-            / NULLIF(DATE_PART('day', :'date_to'::timestamptz - :'date_from'::timestamptz), 0),
+            / NULLIF(DATE_PART('day', :date_to::timestamptz - :date_from::timestamptz), 0),
             1
         )                                                                       AS dau_avg,
         COUNT(DISTINCT u.id) FILTER (
@@ -28,7 +31,7 @@ users_stats AS (
     FROM users u
     JOIN chats c ON c.user_id = u.id
     JOIN messages m ON m.chat_id = c.id
-    WHERE m.created_at BETWEEN :'date_from' AND :'date_to'
+    WHERE m.created_at BETWEEN :date_from AND :date_to
       AND m.role = 'user'
 ),
 activity_stats AS (
@@ -47,7 +50,7 @@ activity_stats AS (
         SUM(m.token_count)                                                      AS total_tokens
     FROM chats c
     JOIN messages m ON m.chat_id = c.id
-    WHERE m.created_at BETWEEN :'date_from' AND :'date_to'
+    WHERE m.created_at BETWEEN :date_from AND :date_to
 ),
 ratings_stats AS (
     SELECT
@@ -59,7 +62,7 @@ ratings_stats AS (
             / NULLIF(COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100, 1
         )                                                                       AS like_pct
     FROM messages m
-    WHERE m.created_at BETWEEN :'date_from' AND :'date_to'
+    WHERE m.created_at BETWEEN :date_from AND :date_to
       AND m.role = 'assistant'
 ),
 latency_stats AS (
@@ -77,7 +80,7 @@ latency_stats AS (
             ORDER BY (m.metadata->>'ttftMs')::numeric
         ))                                                                      AS ttft_p95_ms
     FROM messages m
-    WHERE m.created_at BETWEEN :'date_from' AND :'date_to'
+    WHERE m.created_at BETWEEN :date_from AND :date_to
       AND m.role = 'assistant'
       AND m.metadata->>'llmMs' IS NOT NULL
 )
@@ -105,7 +108,7 @@ SELECT
     COUNT(*) FILTER (WHERE m.role = 'assistant' AND m.feedback_vote = 'dislike') AS dislikes
 FROM chats c
 JOIN messages m ON m.chat_id = c.id
-WHERE m.created_at BETWEEN :'date_from' AND :'date_to'
+WHERE m.created_at BETWEEN :date_from AND :date_to
 GROUP BY DATE(m.created_at)
 ORDER BY day;
 
@@ -132,7 +135,7 @@ SELECT
 FROM chats c
 LEFT JOIN skills s ON s.system_prompt = c.system_prompt AND s.tenant_id = c.tenant_id
 LEFT JOIN messages m ON m.chat_id = c.id AND m.role = 'assistant'
-WHERE c.created_at BETWEEN :'date_from' AND :'date_to'
+WHERE c.created_at BETWEEN :date_from AND :date_to
 GROUP BY s.name, s.category
 ORDER BY chats_count DESC
 LIMIT 20;
@@ -150,7 +153,7 @@ SELECT
     ))                                                                          AS llm_p95_ms,
     COUNT(*)                                                                    AS responses_count
 FROM messages m
-WHERE m.created_at BETWEEN :'date_from' AND :'date_to'
+WHERE m.created_at BETWEEN :date_from AND :date_to
   AND m.role = 'assistant'
   AND m.metadata->>'llmMs' IS NOT NULL
 GROUP BY EXTRACT(HOUR FROM m.created_at)
