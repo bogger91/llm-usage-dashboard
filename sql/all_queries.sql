@@ -12,8 +12,8 @@
 WITH
 params AS (
     SELECT
-        '2025-01-01'::timestamptz AS date_from,  --<<ПЕРИОД>>
-        '2025-12-31'::timestamptz AS date_to      --<<ПЕРИОД>>
+        '2026-04-01'::timestamptz AS date_from,  --<<ПЕРИОД>>
+        '2026-12-31'::timestamptz AS date_to      --<<ПЕРИОД>>
 ),
 users_stats AS (
     SELECT
@@ -74,18 +74,18 @@ ratings_stats AS (
 ),
 latency_stats AS (
     SELECT
-        ROUND(AVG((m.metadata->>'llmMs')::numeric))                            AS llm_avg_ms,
+        ROUND(AVG((m.metadata->>'llmMs')::numeric), 0)                         AS llm_avg_ms,
         ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (
             ORDER BY (m.metadata->>'llmMs')::numeric
-        ))                                                                      AS llm_median_ms,
+        )::numeric, 0)                                                          AS llm_median_ms,
         ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (
             ORDER BY (m.metadata->>'llmMs')::numeric
-        ))                                                                      AS llm_p95_ms,
-        ROUND(AVG((m.metadata->>'ragMs')::numeric))                            AS rag_avg_ms,
-        ROUND(AVG((m.metadata->>'ttftMs')::numeric))                           AS ttft_avg_ms,
+        )::numeric, 0)                                                          AS llm_p95_ms,
+        ROUND(AVG((m.metadata->>'ragMs')::numeric), 0)                         AS rag_avg_ms,
+        ROUND(AVG((m.metadata->>'ttftMs')::numeric), 0)                        AS ttft_avg_ms,
         ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (
             ORDER BY (m.metadata->>'ttftMs')::numeric
-        ))                                                                      AS ttft_p95_ms
+        )::numeric, 0)                                                          AS ttft_p95_ms
     FROM params p
     JOIN messages m ON true
     WHERE m.created_at BETWEEN p.date_from AND p.date_to
@@ -107,8 +107,8 @@ FROM users_stats u, activity_stats a, ratings_stats r, latency_stats l;
 -- ══════════════════════════════════════════════════════════════════════
 WITH params AS (
     SELECT
-        '2025-01-01'::timestamptz AS date_from,  --<<ПЕРИОД>>
-        '2025-12-31'::timestamptz AS date_to      --<<ПЕРИОД>>
+        '2026-04-01'::timestamptz AS date_from,  --<<ПЕРИОД>>
+        '2026-12-31'::timestamptz AS date_to      --<<ПЕРИОД>>
 )
 SELECT
     DATE(m.created_at)                                                          AS day,
@@ -130,8 +130,8 @@ ORDER BY day;
 -- ══════════════════════════════════════════════════════════════════════
 WITH params AS (
     SELECT
-        '2025-01-01'::timestamptz AS date_from,  --<<ПЕРИОД>>
-        '2025-12-31'::timestamptz AS date_to      --<<ПЕРИОД>>
+        '2026-04-01'::timestamptz AS date_from,  --<<ПЕРИОД>>
+        '2026-12-31'::timestamptz AS date_to      --<<ПЕРИОД>>
 )
 SELECT
     COALESCE(s.name, '(без промпта)')                                           AS prompt_name,
@@ -163,15 +163,15 @@ LIMIT 20;
 -- ══════════════════════════════════════════════════════════════════════
 WITH params AS (
     SELECT
-        '2025-01-01'::timestamptz AS date_from,  --<<ПЕРИОД>>
-        '2025-12-31'::timestamptz AS date_to      --<<ПЕРИОД>>
+        '2026-04-01'::timestamptz AS date_from,  --<<ПЕРИОД>>
+        '2026-12-31'::timestamptz AS date_to      --<<ПЕРИОД>>
 )
 SELECT
     EXTRACT(HOUR FROM m.created_at)                                             AS hour_of_day,
-    ROUND(AVG((m.metadata->>'llmMs')::numeric))                                 AS llm_avg_ms,
+    ROUND(AVG((m.metadata->>'llmMs')::numeric), 0)                              AS llm_avg_ms,
     ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (
         ORDER BY (m.metadata->>'llmMs')::numeric
-    ))                                                                          AS llm_p95_ms,
+    )::numeric, 0)                                                              AS llm_p95_ms,
     COUNT(*)                                                                    AS responses_count
 FROM params p
 JOIN messages m ON true
