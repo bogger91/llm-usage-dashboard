@@ -1,29 +1,26 @@
 -- МирГПТ: все запросы дашборда
 -- Запустить все через Run Script (Alt+X), экспортировать каждую вкладку результатов в CSV
 --
--- !! ЗАДАТЬ ПЕРИОД: поменяйте даты в двух строках ниже в каждом запросе !!
--- Строки помечены комментарием --<<ПЕРИОД>>
+-- !! ЗАДАТЬ ПЕРИОД: используйте Ctrl+H в DBeaver и замените даты !!
+--    Текущий период: 2026-04-01 — 2026-12-31
 
 
 -- ══════════════════════════════════════════════════════════════════════
 -- 1. СВОДКА → экспортировать как: data/summary.csv
---    Пользователи + Активность + Оценки + Латентность — одна строка
 -- ══════════════════════════════════════════════════════════════════════
 WITH
-params AS (
-    SELECT
-        '2026-04-01'::timestamptz AS date_from,  --<<ПЕРИОД>>
-        '2026-12-31'::timestamptz AS date_to      --<<ПЕРИОД>>
-),
 users_stats AS (
     SELECT
         COUNT(DISTINCT u.id)                                                    AS total_users,
         COUNT(DISTINCT u.id) FILTER (
-            WHERE u.created_at BETWEEN p.date_from AND p.date_to
+            WHERE u.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
         )                                                                       AS new_users,
         ROUND(
             (COUNT(DISTINCT (u.id::text || DATE(m.created_at)::text))::numeric
-            / NULLIF(DATE_PART('day', p.date_to - p.date_from), 0))::numeric,
+            / NULLIF(
+                DATE_PART('day', '2026-12-31'::timestamptz - '2026-04-01'::timestamptz),
+                0
+            ))::numeric,
             1
         )                                                                       AS dau_avg,
         COUNT(DISTINCT u.id) FILTER (
@@ -32,16 +29,15 @@ users_stats AS (
         COUNT(DISTINCT u.id) FILTER (
             WHERE m.created_at >= NOW() - INTERVAL '30 days'
         )                                                                       AS mau
-    FROM params p
-    JOIN users u ON true
+    FROM users u
     JOIN chats c ON c.user_id = u.id
     JOIN messages m ON m.chat_id = c.id
-    WHERE m.created_at BETWEEN p.date_from AND p.date_to
+    WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
       AND m.role = 'user'
 ),
 activity_stats AS (
     SELECT
-        COUNT(m.id) FILTER (WHERE m.role = 'user')                             AS total_questions,
+        COUNT(m.id) FILTER (WHERE m.role = 'user')                              AS total_questions,
         COUNT(DISTINCT c.id)                                                    AS total_chats,
         COUNT(DISTINCT c.user_id)                                               AS active_users,
         ROUND(
@@ -53,23 +49,21 @@ activity_stats AS (
             / NULLIF(COUNT(DISTINCT c.id), 0))::numeric, 1
         )                                                                       AS avg_questions_per_chat,
         SUM(m.token_count)                                                      AS total_tokens
-    FROM params p
-    JOIN chats c ON true
+    FROM chats c
     JOIN messages m ON m.chat_id = c.id
-    WHERE m.created_at BETWEEN p.date_from AND p.date_to
+    WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
 ),
 ratings_stats AS (
     SELECT
-        COUNT(*) FILTER (WHERE m.feedback_vote = 'like')                       AS likes,
-        COUNT(*) FILTER (WHERE m.feedback_vote = 'dislike')                    AS dislikes,
-        COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL)                    AS total_votes,
+        COUNT(*) FILTER (WHERE m.feedback_vote = 'like')                        AS likes,
+        COUNT(*) FILTER (WHERE m.feedback_vote = 'dislike')                     AS dislikes,
+        COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL)                     AS total_votes,
         ROUND(
             (COUNT(*) FILTER (WHERE m.feedback_vote = 'like')::numeric
             / NULLIF(COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100)::numeric, 1
         )                                                                       AS like_pct
-    FROM params p
-    JOIN messages m ON true
-    WHERE m.created_at BETWEEN p.date_from AND p.date_to
+    FROM messages m
+    WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
       AND m.role = 'assistant'
 ),
 latency_stats AS (
@@ -81,14 +75,13 @@ latency_stats AS (
         ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (
             ORDER BY (m.metadata->>'llmMs')::numeric
         )::numeric, 0)                                                          AS llm_p95_ms,
-        ROUND(AVG((m.metadata->>'ragMs')::numeric)::numeric, 0)                AS rag_avg_ms,
-        ROUND(AVG((m.metadata->>'ttftMs')::numeric)::numeric, 0)               AS ttft_avg_ms,
+        ROUND(AVG((m.metadata->>'ragMs')::numeric)::numeric, 0)                 AS rag_avg_ms,
+        ROUND(AVG((m.metadata->>'ttftMs')::numeric)::numeric, 0)                AS ttft_avg_ms,
         ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (
             ORDER BY (m.metadata->>'ttftMs')::numeric
         )::numeric, 0)                                                          AS ttft_p95_ms
-    FROM params p
-    JOIN messages m ON true
-    WHERE m.created_at BETWEEN p.date_from AND p.date_to
+    FROM messages m
+    WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
       AND m.role = 'assistant'
       AND m.metadata->>'llmMs' IS NOT NULL
 )
@@ -105,11 +98,6 @@ FROM users_stats u, activity_stats a, ratings_stats r, latency_stats l;
 -- ══════════════════════════════════════════════════════════════════════
 -- 2. ДИНАМИКА ПО ДНЯМ → экспортировать как: data/daily.csv
 -- ══════════════════════════════════════════════════════════════════════
-WITH params AS (
-    SELECT
-        '2026-04-01'::timestamptz AS date_from,  --<<ПЕРИОД>>
-        '2026-12-31'::timestamptz AS date_to      --<<ПЕРИОД>>
-)
 SELECT
     DATE(m.created_at)                                                          AS day,
     COUNT(m.id) FILTER (WHERE m.role = 'user')                                  AS questions,
@@ -117,10 +105,9 @@ SELECT
     COUNT(DISTINCT c.id)                                                        AS chats,
     COUNT(*) FILTER (WHERE m.role = 'assistant' AND m.feedback_vote = 'like')   AS likes,
     COUNT(*) FILTER (WHERE m.role = 'assistant' AND m.feedback_vote = 'dislike') AS dislikes
-FROM params p
-JOIN chats c ON true
+FROM chats c
 JOIN messages m ON m.chat_id = c.id
-WHERE m.created_at BETWEEN p.date_from AND p.date_to
+WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
 GROUP BY DATE(m.created_at)
 ORDER BY day;
 
@@ -146,7 +133,7 @@ SELECT
 FROM chats c
 LEFT JOIN skills s ON s.system_prompt = c.system_prompt AND s.tenant_id = c.tenant_id
 LEFT JOIN messages m ON m.chat_id = c.id AND m.role = 'assistant'
-WHERE c.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz  --<<ПЕРИОД>>
+WHERE c.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
 GROUP BY s.name, s.category
 ORDER BY chats_count DESC
 LIMIT 20;
@@ -155,11 +142,6 @@ LIMIT 20;
 -- ══════════════════════════════════════════════════════════════════════
 -- 4. ЛАТЕНТНОСТЬ ПО ЧАСАМ → экспортировать как: data/latency_hour.csv
 -- ══════════════════════════════════════════════════════════════════════
-WITH params AS (
-    SELECT
-        '2026-04-01'::timestamptz AS date_from,  --<<ПЕРИОД>>
-        '2026-12-31'::timestamptz AS date_to      --<<ПЕРИОД>>
-)
 SELECT
     EXTRACT(HOUR FROM m.created_at)                                             AS hour_of_day,
     ROUND(AVG((m.metadata->>'llmMs')::numeric)::numeric, 0)                     AS llm_avg_ms,
@@ -167,9 +149,8 @@ SELECT
         ORDER BY (m.metadata->>'llmMs')::numeric
     )::numeric, 0)                                                              AS llm_p95_ms,
     COUNT(*)                                                                    AS responses_count
-FROM params p
-JOIN messages m ON true
-WHERE m.created_at BETWEEN p.date_from AND p.date_to
+FROM messages m
+WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
   AND m.role = 'assistant'
   AND m.metadata->>'llmMs' IS NOT NULL
 GROUP BY EXTRACT(HOUR FROM m.created_at)
