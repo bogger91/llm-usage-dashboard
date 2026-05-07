@@ -22,8 +22,8 @@ users_stats AS (
             WHERE u.created_at BETWEEN p.date_from AND p.date_to
         )                                                                       AS new_users,
         ROUND(
-            COUNT(DISTINCT (u.id::text || DATE(m.created_at)::text))::numeric
-            / NULLIF(DATE_PART('day', p.date_to - p.date_from), 0),
+            (COUNT(DISTINCT (u.id::text || DATE(m.created_at)::text))::numeric
+            / NULLIF(DATE_PART('day', p.date_to - p.date_from), 0))::numeric,
             1
         )                                                                       AS dau_avg,
         COUNT(DISTINCT u.id) FILTER (
@@ -45,12 +45,12 @@ activity_stats AS (
         COUNT(DISTINCT c.id)                                                    AS total_chats,
         COUNT(DISTINCT c.user_id)                                               AS active_users,
         ROUND(
-            COUNT(m.id) FILTER (WHERE m.role = 'user')::numeric
-            / NULLIF(COUNT(DISTINCT c.user_id), 0), 1
+            (COUNT(m.id) FILTER (WHERE m.role = 'user')::numeric
+            / NULLIF(COUNT(DISTINCT c.user_id), 0))::numeric, 1
         )                                                                       AS avg_questions_per_user,
         ROUND(
-            COUNT(m.id) FILTER (WHERE m.role = 'user')::numeric
-            / NULLIF(COUNT(DISTINCT c.id), 0), 1
+            (COUNT(m.id) FILTER (WHERE m.role = 'user')::numeric
+            / NULLIF(COUNT(DISTINCT c.id), 0))::numeric, 1
         )                                                                       AS avg_questions_per_chat,
         SUM(m.token_count)                                                      AS total_tokens
     FROM params p
@@ -64,8 +64,8 @@ ratings_stats AS (
         COUNT(*) FILTER (WHERE m.feedback_vote = 'dislike')                    AS dislikes,
         COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL)                    AS total_votes,
         ROUND(
-            COUNT(*) FILTER (WHERE m.feedback_vote = 'like')::numeric
-            / NULLIF(COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100, 1
+            (COUNT(*) FILTER (WHERE m.feedback_vote = 'like')::numeric
+            / NULLIF(COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100)::numeric, 1
         )                                                                       AS like_pct
     FROM params p
     JOIN messages m ON true
@@ -74,15 +74,15 @@ ratings_stats AS (
 ),
 latency_stats AS (
     SELECT
-        ROUND(AVG((m.metadata->>'llmMs')::numeric), 0)                         AS llm_avg_ms,
+        ROUND(AVG((m.metadata->>'llmMs')::numeric)::numeric, 0)                 AS llm_avg_ms,
         ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (
             ORDER BY (m.metadata->>'llmMs')::numeric
         )::numeric, 0)                                                          AS llm_median_ms,
         ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (
             ORDER BY (m.metadata->>'llmMs')::numeric
         )::numeric, 0)                                                          AS llm_p95_ms,
-        ROUND(AVG((m.metadata->>'ragMs')::numeric), 0)                         AS rag_avg_ms,
-        ROUND(AVG((m.metadata->>'ttftMs')::numeric), 0)                        AS ttft_avg_ms,
+        ROUND(AVG((m.metadata->>'ragMs')::numeric)::numeric, 0)                AS rag_avg_ms,
+        ROUND(AVG((m.metadata->>'ttftMs')::numeric)::numeric, 0)               AS ttft_avg_ms,
         ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (
             ORDER BY (m.metadata->>'ttftMs')::numeric
         )::numeric, 0)                                                          AS ttft_p95_ms
@@ -141,12 +141,12 @@ SELECT
     COUNT(m.id) FILTER (WHERE m.feedback_vote = 'like')                         AS likes,
     COUNT(m.id) FILTER (WHERE m.feedback_vote = 'dislike')                      AS dislikes,
     ROUND(
-        COUNT(DISTINCT c.id)::numeric
-        / NULLIF(SUM(COUNT(DISTINCT c.id)) OVER (), 0) * 100, 1
+        (COUNT(DISTINCT c.id)::numeric
+        / NULLIF(SUM(COUNT(DISTINCT c.id)) OVER (), 0) * 100)::numeric, 1
     )                                                                           AS pct_of_total,
     ROUND(
-        COUNT(m.id) FILTER (WHERE m.feedback_vote = 'dislike')::numeric
-        / NULLIF(COUNT(m.id) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100, 1
+        (COUNT(m.id) FILTER (WHERE m.feedback_vote = 'dislike')::numeric
+        / NULLIF(COUNT(m.id) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100)::numeric, 1
     )                                                                           AS dislike_pct
 FROM params p
 JOIN chats c ON true
@@ -168,7 +168,7 @@ WITH params AS (
 )
 SELECT
     EXTRACT(HOUR FROM m.created_at)                                             AS hour_of_day,
-    ROUND(AVG((m.metadata->>'llmMs')::numeric), 0)                              AS llm_avg_ms,
+    ROUND(AVG((m.metadata->>'llmMs')::numeric)::numeric, 0)                     AS llm_avg_ms,
     ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (
         ORDER BY (m.metadata->>'llmMs')::numeric
     )::numeric, 0)                                                              AS llm_p95_ms,
