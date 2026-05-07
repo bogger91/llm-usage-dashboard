@@ -128,11 +128,6 @@ ORDER BY day;
 -- ══════════════════════════════════════════════════════════════════════
 -- 3. ТОП ПРОМПТОВ → экспортировать как: data/prompts.csv
 -- ══════════════════════════════════════════════════════════════════════
-WITH params AS (
-    SELECT
-        '2026-04-01'::timestamptz AS date_from,  --<<ПЕРИОД>>
-        '2026-12-31'::timestamptz AS date_to      --<<ПЕРИОД>>
-)
 SELECT
     COALESCE(s.name, '(без промпта)')                                           AS prompt_name,
     s.category,
@@ -148,11 +143,10 @@ SELECT
         (COUNT(m.id) FILTER (WHERE m.feedback_vote = 'dislike')::numeric
         / NULLIF(COUNT(m.id) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100)::numeric, 1
     )                                                                           AS dislike_pct
-FROM params p
-JOIN chats c ON true
+FROM chats c
 LEFT JOIN skills s ON s.system_prompt = c.system_prompt AND s.tenant_id = c.tenant_id
 LEFT JOIN messages m ON m.chat_id = c.id AND m.role = 'assistant'
-WHERE c.created_at BETWEEN p.date_from AND p.date_to
+WHERE c.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz  --<<ПЕРИОД>>
 GROUP BY s.name, s.category
 ORDER BY chats_count DESC
 LIMIT 20;
