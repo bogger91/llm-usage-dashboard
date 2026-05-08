@@ -235,13 +235,13 @@ function renderTiles() {
   setBarSplit('tLDBar', s.likes, s.dislikes);
   setNoData('tLD', src.summary === 'csv' && (n.likes || n.dislikes));
 
-  setText('tRefusal', m.refusal_rate.toFixed(1));
-  setText('tRefusalHint', '«не могу ответить»');
-  setNoData('tRefusal', src.quality === 'csv' && n.refusal_rate);
-  setText('tRepeat',  m.repeat_rate.toFixed(1));
-  setText('tRepeatHint', 'переспрос за 5 мин');
-  $('tRepeatHint').className = 'tile-foot ' + (m.repeat_rate > 10 ? 'down' : '');
-  setNoData('tRepeat', src.quality === 'csv' && n.repeat_rate);
+  setText('tSingleMsg', m.single_msg_pct.toFixed(1));
+  setText('tSingleMsgHint', `${fmt(m.single_msg_chats)} из ${fmt(m.total_chats_q)} чатов`);
+  setNoData('tSingleMsg', src.quality === 'csv' && n.single_msg_pct);
+
+  const msgPerChat = s.total_chats ? (s.total_questions / s.total_chats).toFixed(1) : '—';
+  setText('tMsgPerChat', msgPerChat);
+  setNoData('tMsgPerChat', src.summary === 'csv' && (n.total_questions || n.total_chats));
 
   // GPU и токены
   const tokensPerAns = s.total_questions ? Math.round(s.total_tokens / s.total_questions) : 0;
@@ -530,10 +530,16 @@ function renderAll() {
 
 function updateSourceBadges() {
   document.querySelectorAll('[data-source]').forEach(b => {
-    const key = b.dataset.source;
-    const isDemo = STATE.source[key] === 'demo';
+    const isDemo = STATE.source[b.dataset.source] === 'demo';
     b.textContent = isDemo ? 'демо' : 'CSV';
     b.classList.toggle('demo', isDemo);
+  });
+  document.querySelectorAll('[data-sources]').forEach(b => {
+    const keys = b.dataset.sources.split(',');
+    const anyDemo = keys.some(k => STATE.source[k] === 'demo');
+    const allDemo = keys.every(k => STATE.source[k] === 'demo');
+    b.textContent = allDemo ? 'демо' : anyDemo ? 'часть демо' : 'CSV';
+    b.classList.toggle('demo', anyDemo);
   });
 }
 
@@ -624,14 +630,14 @@ bindUpload('fileQuality', 'stQuality', (rows) => {
   if (!rows.length) return;
   const isNull = (v) => v == null || v === '' || v === 'NULL' || v === 'null';
   const avg = (k) => rows.reduce((s, r) => s + (+r[k] || 0), 0) / rows.length;
-  STATE.csvNull.refusal_rate  = isNull(rows[0].refusal_rate);
+  STATE.csvNull.single_msg_pct = isNull(rows[0].single_msg_pct);
   STATE.csvNull.error_rate    = isNull(rows[0].error_rate);
   STATE.csvNull.timeout_rate  = isNull(rows[0].timeout_rate);
-  STATE.csvNull.repeat_rate   = isNull(rows[0].repeat_rate);
-  if (!STATE.csvNull.refusal_rate) STATE.mock.refusal_rate  = avg('refusal_rate') * 100;
+  if (!STATE.csvNull.single_msg_pct) STATE.mock.single_msg_pct = +rows[0].single_msg_pct;
+  if (!STATE.csvNull.single_msg_pct) STATE.mock.single_msg_chats = +rows[0].single_msg_chats || 0;
+  if (!STATE.csvNull.single_msg_pct) STATE.mock.total_chats_q = +rows[0].total_chats || 0;
   if (!STATE.csvNull.error_rate)   STATE.mock.error_rate    = avg('error_rate')   * 100;
   if (!STATE.csvNull.timeout_rate) STATE.mock.timeout_rate  = avg('timeout_rate') * 100;
-  if (!STATE.csvNull.repeat_rate)  STATE.mock.repeat_rate   = avg('repeat_rate')  * 100;
   STATE.qualityRows = rows;
   STATE.source.quality = 'csv';
 });

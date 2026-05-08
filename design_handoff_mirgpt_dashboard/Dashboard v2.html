@@ -198,6 +198,37 @@
   .tile-bar > i { display: block; height: 100%; background: var(--accent); }
   .tile-bar > b   { display: block; height: 100%; }
 
+  /* ── TILE TOOLTIP ─────────────────────────────────────────── */
+  .tile-tip-btn {
+    position: absolute; top: 8px; right: 8px;
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 1px solid var(--line-2); background: var(--bg);
+    font-family: var(--mono); font-size: 9px; color: var(--muted);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    line-height: 1; padding: 0;
+    transition: border-color .15s, color .15s;
+  }
+  .tile-tip-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .tile.no-data .tile-tip-btn { top: 8px; right: 30px; }
+  .tile.new .tile-tip-btn     { top: 8px; right: 46px; }
+  .tile-tip-popup {
+    display: none;
+    position: absolute; z-index: 100;
+    top: 30px; right: 0;
+    width: 240px;
+    background: var(--ink); color: #e8e7e3;
+    font-size: 11px; line-height: 1.6;
+    padding: 10px 13px; border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.25);
+    white-space: normal;
+  }
+  .tile-tip-popup::before {
+    content: ''; position: absolute; top: -5px; right: 10px;
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-bottom: 5px solid var(--ink);
+  }
+  .tile-tip-btn.open + .tile-tip-popup { display: block; }
+
   /* ── CHART CARDS ──────────────────────────────────────────── */
   .charts { display: grid; gap: 12px; }
   .charts.cols-2 { grid-template-columns: 1fr 1fr; }
@@ -382,24 +413,24 @@
     <span class="src-badge demo" data-source="retention">демо</span>
   </div>
   <div class="tiles">
-    <div class="tile">
+    <div class="tile" data-tip="Доля пользователей, вернувшихся на следующий день после первого визита. Норма для корпоративных инструментов — от 50%. Низкий показатель означает, что первое впечатление не мотивирует вернуться.">
       <div class="tile-label">D1 retention</div>
       <div class="tile-val"><span id="tD1">—</span><small id="tD1Suf">%</small></div>
       <div class="tile-bar" id="tD1Bar"><i></i></div>
       <div class="tile-foot"><span id="tD1Hint">цель ≥ 50%</span></div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="Доля пользователей, вернувшихся в течение 7 дней после первого визита. Отражает формирование привычки. Норма — от 30%.">
       <div class="tile-label">D7 retention</div>
       <div class="tile-val"><span id="tD7">—</span><small id="tD7Suf">%</small></div>
       <div class="tile-bar" id="tD7Bar"><i></i></div>
       <div class="tile-foot"><span id="tD7Hint">цель ≥ 30%</span></div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="Пользователи, задающие ≥ 20 вопросов в неделю. Ядро аудитории — те, для кого инструмент стал частью рабочего процесса.">
       <div class="tile-label">Power users</div>
       <div class="tile-val"><span id="tPower">—</span></div>
       <div class="tile-foot"><span id="tPowerHint">≥ 20 вопросов / нед</span></div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="DAU / MAU — отношение среднедневных активных пользователей к месячным. Чем выше, тем чаще люди возвращаются. Норма для рабочих инструментов — 0.20–0.25.">
       <div class="tile-label">Stickiness DAU/MAU</div>
       <div class="tile-val"><span id="tStick">—</span></div>
       <div class="tile-foot" id="tStickHint">норма 0.20–0.25</div>
@@ -410,30 +441,29 @@
   <div class="group-head">
     <h2>Качество ответов</h2>
     <span class="rule"></span>
-    <span class="src-badge demo" data-source="summary">демо</span>
-    <span class="src-badge demo" data-source="quality">демо</span>
+    <span class="src-badge demo" data-sources="summary,quality">демо</span>
   </div>
   <div class="tiles">
-    <div class="tile">
+    <div class="tile" data-tip="Доля вопросов, на которые пользователь поставил оценку (👍 или 👎). Чем выше — тем лучше вовлечённость. Норма — от 20%. Низкий показатель означает безразличие к качеству ответов.">
       <div class="tile-label">Feedback rate</div>
       <div class="tile-val"><span id="tFb">—</span><small>%</small></div>
       <div class="tile-foot"><span id="tFbHint">—</span><span>цель ≥ 20%</span></div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="Соотношение положительных и отрицательных оценок за период. Высокий процент дизлайков (> 30%) — сигнал проблем с качеством ответов или несоответствия ожиданиям.">
       <div class="tile-label">Like : Dislike</div>
       <div class="tile-val" id="tLD">—</div>
       <div class="tile-bar" id="tLDBar"><i></i><b></b></div>
       <div class="tile-foot" id="tLDHint">—</div>
     </div>
-    <div class="tile">
-      <div class="tile-label">Refusal rate</div>
-      <div class="tile-val"><span id="tRefusal">—</span><small>%</small></div>
-      <div class="tile-foot"><span id="tRefusalHint">—</span></div>
+    <div class="tile" data-tip="Доля чатов, в которых пользователь задал только один вопрос. Высокий показатель может означать: ответ сразу решил задачу, или — пользователь разочаровался и ушёл. Интерпретировать вместе с feedback rate.">
+      <div class="tile-label">Чаты с 1 вопросом</div>
+      <div class="tile-val"><span id="tSingleMsg">—</span><small>%</small></div>
+      <div class="tile-foot"><span id="tSingleMsgHint">—</span></div>
     </div>
-    <div class="tile">
-      <div class="tile-label">Repeat rate</div>
-      <div class="tile-val"><span id="tRepeat">—</span><small>%</small></div>
-      <div class="tile-foot" id="tRepeatHint">переспрос за 5 мин</div>
+    <div class="tile" data-tip="Среднее количество сообщений пользователя в одном чате за период. Высокое значение говорит о глубоком диалоге — пользователь уточняет, развивает тему. Низкое — чаще разовые запросы.">
+      <div class="tile-label">Сообщ. / чат</div>
+      <div class="tile-val"><span id="tMsgPerChat">—</span></div>
+      <div class="tile-foot" id="tMsgPerChatHint">среднее по периоду</div>
     </div>
   </div>
 
@@ -444,22 +474,22 @@
     <span class="src-badge demo" data-source="summary">демо</span>
   </div>
   <div class="tiles">
-    <div class="tile">
+    <div class="tile" data-tip="Среднее количество токенов в одном ответе ассистента. Влияет на стоимость и скорость генерации. Очень длинные ответы могут снижать удовлетворённость — пользователи предпочитают лаконичность.">
       <div class="tile-label">Tokens / answer</div>
       <div class="tile-val" id="tTok">—</div>
       <div class="tile-foot" id="tTokHint">—</div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="Суммарное время генерации LLM (llmMs) на один чат. Показывает нагрузку на GPU в расчёте на сессию. Рост метрики при том же числе чатов — сигнал увеличения длины ответов или сложности запросов.">
       <div class="tile-label">GPU‑sec / chat</div>
       <div class="tile-val"><span id="tGpuSec">—</span><small>с</small></div>
       <div class="tile-foot" id="tGpuSecHint">—</div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="Токенов, сгенерированных за одну секунду GPU-времени. Характеристика эффективности инфраструктуры. Падение throughput при неизменной нагрузке — признак деградации модели или окружения.">
       <div class="tile-label">Throughput</div>
       <div class="tile-val"><span id="tThru">—</span><small>tok/с</small></div>
       <div class="tile-foot" id="tThruHint">токенов / GPU‑сек</div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="Доля чатов, где использовался хотя бы один системный промпт (скилл). Показывает, насколько пользователи осваивают специализированные инструменты, а не общаются с моделью напрямую.">
       <div class="tile-label">Skill coverage</div>
       <div class="tile-val"><span id="tSkill">—</span><small>%</small></div>
       <div class="tile-foot" id="tSkillHint">—</div>
@@ -470,46 +500,45 @@
   <div class="group-head">
     <h2>Производительность</h2>
     <span class="rule"></span>
-    <span class="src-badge demo" data-source="latency">демо</span>
-    <span class="src-badge demo" data-source="quality">демо</span>
+    <span class="src-badge demo" data-sources="latency,quality">демо</span>
   </div>
   <div class="tiles">
-    <div class="tile">
+    <div class="tile" data-tip="Среднее полное время генерации ответа LLM (поле llmMs). Включает обработку контекста и генерацию токенов. Ориентир — до 10 секунд для комфортного ожидания.">
       <div class="tile-label">LLM avg</div>
       <div class="tile-val" id="tLlmAvg">—</div>
       <div class="tile-foot"><span>среднее по периоду</span></div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="Медианное время генерации LLM. В отличие от среднего, не искажается редкими медленными запросами. Лучше отражает типичный опыт пользователя.">
       <div class="tile-label">LLM median</div>
       <div class="tile-val" id="tLlmMed">—</div>
       <div class="tile-foot"><span>50‑й перцентиль</span></div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="95-й перцентиль времени генерации LLM — худшие 5% запросов. SLA-метрика: если p95 > 10 с, каждый 20-й пользователь ждёт дольше допустимого.">
       <div class="tile-label">LLM p95</div>
       <div class="tile-val" id="tLlmP95">—</div>
       <div class="tile-foot"><span>SLA ≤ 10 с</span></div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="Среднее время до первого токена (поле ttftMs). Пользователь воспринимает TTFT как время ожидания — чем меньше, тем лучше. Норма — до 2 секунд.">
       <div class="tile-label">TTFT avg</div>
       <div class="tile-val" id="tTtftAvg">—</div>
       <div class="tile-foot"><span>time‑to‑first‑token</span></div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="95-й перцентиль TTFT. Показывает, как долго ждут пользователи в худших случаях. Высокий p95 при нормальном среднем — признак нестабильности инфраструктуры.">
       <div class="tile-label">TTFT p95</div>
       <div class="tile-val" id="tTtftP95">—</div>
       <div class="tile-foot"><span>хвост распределения</span></div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="Среднее время поиска по базе знаний (поле ragMs). Актуально для чатов с RAG. Высокое значение замедляет ответ ещё до генерации — стоит оптимизировать индекс.">
       <div class="tile-label">RAG avg</div>
       <div class="tile-val" id="tRagAvg">—</div>
       <div class="tile-foot"><span>поиск документов</span></div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="Доля сообщений ассистента со статусом ошибки. Включает сбои модели, проблемы с контекстом и инфраструктурные отказы. Норма — менее 1%.">
       <div class="tile-label">Error rate</div>
       <div class="tile-val"><span id="tErr">—</span><small>%</small></div>
       <div class="tile-foot"><span id="tErrHint">—</span></div>
     </div>
-    <div class="tile">
+    <div class="tile" data-tip="Доля запросов, где llmMs превысило 30 секунд. Такие запросы пользователь воспринимает как зависание. Рост метрики — сигнал перегрузки или деградации модели.">
       <div class="tile-label">Timeout rate</div>
       <div class="tile-val"><span id="tTimeout">—</span><small>%</small></div>
       <div class="tile-foot"><span id="tTimeoutHint">—</span></div>
@@ -598,7 +627,7 @@
   <div class="footer-note">
     <b>Что в прототипе.</b> Источник: ваши CSV из <code style="font-family:var(--mono)">all_queries.sql</code>
     + демо‑данные с тех же скриншотов. Метрики, которых пока нет в SQL
-    (D1/D7 retention, refusal, repeat, error/timeout, top‑user share, conversation depth) — показаны
+    (D1/D7 retention, single-message chats, error/timeout, top‑user share, conversation depth) — показаны
     из мок‑набора. Следующий шаг — расширить SQL и заменить мок на реальные значения.
   </div>
 
@@ -607,6 +636,32 @@
 <script src="dashboard-v2-demo.js"></script>
 <script src="dashboard-v2.js"></script>
 <script src="share.js"></script>
+<script>
+  document.querySelectorAll('.tile[data-tip]').forEach(tile => {
+    const btn = document.createElement('button');
+    btn.className = 'tile-tip-btn';
+    btn.textContent = '?';
+    btn.setAttribute('aria-label', 'Пояснение');
+
+    const popup = document.createElement('div');
+    popup.className = 'tile-tip-popup';
+    popup.textContent = tile.dataset.tip;
+
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = btn.classList.contains('open');
+      document.querySelectorAll('.tile-tip-btn.open').forEach(b => b.classList.remove('open'));
+      if (!isOpen) btn.classList.add('open');
+    });
+
+    tile.appendChild(btn);
+    tile.appendChild(popup);
+  });
+
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.tile-tip-btn.open').forEach(b => b.classList.remove('open'));
+  });
+</script>
 
 </body>
 </html>

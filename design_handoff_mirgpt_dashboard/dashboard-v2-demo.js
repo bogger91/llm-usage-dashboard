@@ -98,8 +98,9 @@ window.DEMO = {
     d7_retention: 28,         // %
     d30_retention: 14,        // %
     power_users: 7,           // ≥ 20 вопросов / нед
-    refusal_rate: 6.1,        // %
-    repeat_rate: 14.0,        // %
+    single_msg_pct: 38.0,     // % чатов с одним вопросом пользователя
+    single_msg_chats: 46,     // абсолютное кол-во
+    total_chats_q: 121,       // всего чатов за период
     long_answer_rate: 11,     // % > 800 токенов
     short_answer_rate: 8,     // % < 50 токенов
     top_user_token_share: 19, // %
