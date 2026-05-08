@@ -218,27 +218,37 @@ WHERE d0 BETWEEN '2026-04-01'::date AND '2026-12-31'::date;
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 6. КАЧЕСТВО ПО ДНЯМ → экспортировать как: data/quality.csv
---    Серия по датам (date, refusal_rate, error_rate, timeout_rate, repeat_rate)
---    Значения — доли 0–1, дашборд умножает на 100.
---
---    ВНИМАНИЕ: поля refused, status, error_code отсутствуют в текущей схеме.
---    refusal_rate и error_rate возвращают NULL — заменить на реальные
---    выражения после появления полей в логах (уточнить у аналитика).
---    repeat_rate требует расширения fuzzystrmatch (функция levenshtein).
+-- 6. КАЧЕСТВО → экспортировать как: data/quality.csv
+--    Результат: одна строка
 -- ══════════════════════════════════════════════════════════════════════
 SELECT
-    DATE(m.created_at)                                                          AS date,
-    NULL::float                                                                 AS refusal_rate,
-    NULL::float                                                                 AS error_rate,
+    -- Чаты с одним вопросом пользователя (message_count = 2: один user + один assistant)
     ROUND(
-        AVG(CASE WHEN (m.metadata->>'llmMs')::numeric > 30000 THEN 1.0 ELSE 0 END)::numeric,
-        4
-    )                                                                           AS timeout_rate,
-    NULL::float                                                                 AS repeat_rate
-FROM messages m
-WHERE m.role = 'assistant'
-  AND m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
-  AND m.metadata->>'llmMs' IS NOT NULL
-GROUP BY DATE(m.created_at)
-ORDER BY date;
+        COUNT(*) FILTER (WHERE message_count <= 2)::numeric
+        / NULLIF(COUNT(*), 0) * 100,
+        1
+    )                                                                           AS single_msg_pct,
+    COUNT(*) FILTER (WHERE message_count <= 2)                                  AS single_msg_chats,
+    COUNT(*)                                                                    AS total_chats,
+
+    -- Error rate: доля ответов ассистента со статусом ошибки
+    ROUND(
+        (SELECT COUNT(*)::numeric FILTER (WHERE role = 'assistant' AND status = 'error')
+            / NULLIF(COUNT(*) FILTER (WHERE role = 'assistant'), 0) * 100
+         FROM messages
+         WHERE created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz),
+        1
+    )                                                                           AS error_rate,
+
+    -- Timeout rate: доля ответов где llmMs > 30 000 мс
+    ROUND(
+        (SELECT COUNT(*)::numeric
+             FILTER (WHERE role = 'assistant' AND (metadata->>'llmMs')::int > 30000)
+             / NULLIF(COUNT(*) FILTER (WHERE role = 'assistant'), 0) * 100
+         FROM messages
+         WHERE created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz),
+        1
+    )                                                                           AS timeout_rate
+
+FROM chats
+WHERE created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz;
