@@ -54,7 +54,7 @@ function computeFromDaily(days) {
   const total_votes      = likes + dislikes;
   const like_pct         = total_votes ? (likes / total_votes) * 100 : null;
   const uniqueUsers      = new Set(days.flatMap(d => d._users || []));
-  const wau              = Math.max(...days.map(d => +d.active_users || 0));
+  const wau              = days.length ? Math.max(...days.map(d => +d.active_users || 0)) : 0;
   const dau_avg          = days.length ? days.reduce((s, d) => s + (+d.active_users || 0), 0) / days.length : 0;
   return { total_questions, total_chats, likes, dislikes, total_votes, like_pct, wau, dau_avg };
 }
@@ -124,6 +124,7 @@ function setNoData(valId, isNull) {
   const tile = el.closest('.tile');
   if (!tile) return;
   tile.classList.toggle('no-data', !!isNull);
+  if (isNull) el.textContent = '—';
 }
 
 function setDelta(id, d) {
@@ -433,7 +434,12 @@ function renderCharts() {
       }],
     },
     options: { ...baseOpts, indexAxis: 'y',
-      plugins: { ...baseOpts.plugins, legend: { display: false } } },
+      plugins: { ...baseOpts.plugins, legend: { display: false } },
+      scales: {
+        x: { ...baseScales.x, beginAtZero: true },
+        y: { ...baseScales.y },
+      },
+    },
   });
 
   // 6. Глубина разговора
@@ -462,15 +468,16 @@ function renderPromptTable() {
         <td class="num">${i + 1}</td>
         <td><div class="cell-name">${r.prompt_name}${noPrompt ? '<span class="row-tag">пусто</span>' : ''}</div></td>
         <td class="muted">${r.category || '—'}</td>
-        <td>
+        <td class="num">
           <div class="bar-cell">
             <div class="bar-bg"><div class="bar-fill" style="width:${(+r.chats_count / max * 100).toFixed(0)}%"></div></div>
-            <span class="num">${fmt(r.chats_count)}</span>
+            <span>${fmt(r.chats_count)}</span>
           </div>
         </td>
         <td class="num">${fmt(r.unique_users)}</td>
         <td class="num">${pct(r.pct_of_total)}</td>
         <td class="num"><span class="chip chip-good">${fmt(r.likes)}</span></td>
+        <td class="num">${+r.dislikes > 0 ? `<span class="chip chip-warn">${fmt(r.dislikes)}</span>` : '<span class="chip chip-zero">0</span>'}</td>
         <td class="num">
           ${dp == null ? '<span class="muted">—</span>' : `
           <div class="bar-cell">
@@ -486,7 +493,7 @@ function renderPromptTable() {
       <thead><tr>
         <th>#</th><th>Промпт</th><th>Категория</th>
         <th>Чаты</th><th>Польз.</th><th>Доля</th>
-        <th>Лайки</th><th>Дизлайки %</th>
+        <th>Лайки</th><th>Дизлайки</th><th>Дизлайки %</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;

@@ -187,6 +187,8 @@
     padding: 2px 6px; border-radius: 4px;
   }
   .tile.no-data .tile-val { color: var(--muted); }
+  .tile.no-data .tile-val small { display: none; }
+  .tile.no-data .tile-foot { visibility: hidden; }
   .tile-label { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
   .tile-val { font-family: var(--mono); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.1; }
   .tile-val small { font-size: 13px; color: var(--muted); margin-left: 3px; font-weight: 500; }
@@ -239,7 +241,7 @@
     padding: 1px 6px; border-radius: 4px;
   }
 
-  .bar-cell { display: inline-flex; align-items: center; gap: 8px; min-width: 110px; justify-content: flex-end; }
+  .bar-cell { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
   .bar-bg { width: 70px; height: 4px; background: var(--bg-2); border-radius: 2px; overflow: hidden; }
   .bar-fill { height: 100%; background: var(--accent); }
   .bar-fill.warn { background: var(--warn); }
@@ -251,6 +253,7 @@
   }
   .chip-good { background: var(--good-soft); color: var(--good); }
   .chip-warn { background: var(--warn-soft); color: var(--warn); }
+  .chip-zero { background: var(--bg-2); color: var(--muted); }
 
   .footer-note {
     margin-top: 56px;
@@ -376,7 +379,7 @@
   <div class="group-head">
     <h2>Активация и удержание</h2>
     <span class="rule"></span>
-    <span class="src-badge demo" data-source="summary">демо</span>
+    <span class="src-badge demo" data-source="retention">демо</span>
   </div>
   <div class="tiles">
     <div class="tile">
@@ -408,6 +411,7 @@
     <h2>Качество ответов</h2>
     <span class="rule"></span>
     <span class="src-badge demo" data-source="summary">демо</span>
+    <span class="src-badge demo" data-source="quality">демо</span>
   </div>
   <div class="tiles">
     <div class="tile">
@@ -467,6 +471,7 @@
     <h2>Производительность</h2>
     <span class="rule"></span>
     <span class="src-badge demo" data-source="latency">демо</span>
+    <span class="src-badge demo" data-source="quality">демо</span>
   </div>
   <div class="tiles">
     <div class="tile">
