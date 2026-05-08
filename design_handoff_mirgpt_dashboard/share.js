@@ -56,12 +56,20 @@
     try {
       // 1) Собираем тексты ресурсов параллельно
       setText('Собираю ресурсы…');
+
+      // Локальные JS читаем через абсолютный src тега — fetch('dashboard-v2.js') не работает на file://
+      const getScriptSrc = (pattern) => {
+        const el = [...document.querySelectorAll('script[src]')]
+          .find(s => pattern.test(s.getAttribute('src') || ''));
+        if (!el) throw new Error('script not found: ' + pattern);
+        return fetchText(el.src);
+      };
+
       const [jsText, chartJsText, papaText, fontCssJBM, fontCssInter] = await Promise.all([
-        fetchText('dashboard-v2.js'),
+        getScriptSrc(/dashboard-v2\.js$/),
         fetchText('https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js'),
         fetchText('https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js'),
         inlineGoogleFontsCss('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap'),
-        // Inter уже системный, но dashboard опирается на него — добавим, чтобы был тот же look
         inlineGoogleFontsCss('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'),
       ]);
 
