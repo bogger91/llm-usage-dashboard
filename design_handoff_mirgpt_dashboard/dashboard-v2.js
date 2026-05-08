@@ -26,6 +26,8 @@ const STATE = {
   buckets: [...DEMO.latency_buckets],
   mock: { ...DEMO.mock },
   source: { summary: 'demo', daily: 'demo', prompts: 'demo', latency: 'demo', retention: 'demo', quality: 'demo' },
+  // поля, отсутствующие в загруженном CSV (null/пусто)
+  csvNull: {},
   period: 30,
   dailyFiltered: [...DEMO.daily],
   summaryFiltered: { ...DEMO.summary },
@@ -113,6 +115,17 @@ function delta(curr, prev, opts = {}) {
 }
 
 function setText(id, text) { const el = $(id); if (el) el.textContent = text; }
+
+// Ставит/снимает плашку "Н/Д" на плитке по id значения внутри неё.
+// isNull=true → данных нет (CSV загружен, но поле пустое/отсутствует)
+function setNoData(valId, isNull) {
+  const el = $(valId);
+  if (!el) return;
+  const tile = el.closest('.tile');
+  if (!tile) return;
+  tile.classList.toggle('no-data', !!isNull);
+}
+
 function setDelta(id, d) {
   const el = $(id); if (!el) return;
   if (!d) { el.textContent = '—'; el.className = 'tile-delta'; return; }
@@ -190,49 +203,63 @@ function drawSpark(id, values, stroke, area) {
 function renderTiles() {
   const s = STATE.summaryFiltered;
   const m = STATE.mock;
+  const n = STATE.csvNull;
+  const src = STATE.source;
 
   // Активация и удержание
   setTile('tD1',  m.d1_retention, '%', { goal: 50, label: 'цель ≥ 50%' });
+  setNoData('tD1',  src.retention === 'csv' && n.d1_retention);
   setTile('tD7',  m.d7_retention, '%', { goal: 30, label: 'цель ≥ 30%' });
+  setNoData('tD7',  src.retention === 'csv' && n.d7_retention);
   setTile('tD30', m.d30_retention, '%', { goal: 15, label: 'цель ≥ 15%' });
+  setNoData('tD30', src.retention === 'csv' && n.d30_retention);
   setText('tPower', fmt(m.power_users));
   setText('tPowerHint', '≥ 20 вопросов / нед');
+  setNoData('tPower', src.retention === 'csv' && n.power_users);
   const stick = s.mau ? (s.dau_avg / s.mau) : 0;
   setText('tStick', stick.toFixed(2));
   setText('tStickHint', stick < 0.1 ? 'низкая (норма 0.20–0.25)' : 'норма 0.20–0.25');
   $('tStickHint').className = 'tile-foot ' + (stick < 0.1 ? 'down' : '');
+  setNoData('tStick', src.summary === 'csv' && (n.mau || n.dau_avg));
 
   // Качество
   const fbRate = s.total_questions ? (s.total_votes / s.total_questions) * 100 : 0;
   setText('tFb', fbRate.toFixed(1));
   setText('tFbHint', `${fmt(s.total_votes)} / ${fmt(s.total_questions)}`);
+  setNoData('tFb', src.summary === 'csv' && (n.total_votes || n.total_questions));
   setText('tLD', `${fmt(s.likes)} : ${fmt(s.dislikes)}`);
   const dPct = s.total_votes ? (s.dislikes / s.total_votes) * 100 : 0;
   setText('tLDHint', `дизлайков ${dPct.toFixed(0)}%`);
   $('tLDHint').className = 'tile-foot ' + (dPct > 30 ? 'down' : '');
   setBarSplit('tLDBar', s.likes, s.dislikes);
+  setNoData('tLD', src.summary === 'csv' && (n.likes || n.dislikes));
 
   setText('tRefusal', m.refusal_rate.toFixed(1));
   setText('tRefusalHint', '«не могу ответить»');
+  setNoData('tRefusal', src.quality === 'csv' && n.refusal_rate);
   setText('tRepeat',  m.repeat_rate.toFixed(1));
   setText('tRepeatHint', 'переспрос за 5 мин');
   $('tRepeatHint').className = 'tile-foot ' + (m.repeat_rate > 10 ? 'down' : '');
+  setNoData('tRepeat', src.quality === 'csv' && n.repeat_rate);
 
   // GPU и токены
   const tokensPerAns = s.total_questions ? Math.round(s.total_tokens / s.total_questions) : 0;
   setText('tTok',  fmt(tokensPerAns));
   setText('tTokHint', `всего ${fmt(s.total_tokens, { short: true })} токенов`);
+  setNoData('tTok', src.summary === 'csv' && n.total_tokens);
 
   // GPU-секунды на чат: суммарное llm-время (avg × ответов) / чатов
   const totalLlmSec = (s.llm_avg_ms / 1000) * s.total_questions;
   const gpuPerChat = s.total_chats ? totalLlmSec / s.total_chats : 0;
   setText('tGpuSec', gpuPerChat.toFixed(1));
   setText('tGpuSecHint', `≈ ${fmt(totalLlmSec, { short: true })} GPU-сек / период`);
+  setNoData('tGpuSec', src.summary === 'csv' && (n.llm_avg_ms || n.total_questions || n.total_chats));
 
   // Throughput: токенов в секунду на GPU
   const throughput = totalLlmSec ? s.total_tokens / totalLlmSec : 0;
   setText('tThru', fmt(throughput, { dp: 1 }));
   setText('tThruHint', 'токенов / GPU-сек');
+  setNoData('tThru', src.summary === 'csv' && (n.total_tokens || n.llm_avg_ms));
 
   // Skill coverage
   const noPrompt = STATE.prompts.find(p => /без\s*пром/i.test(p.prompt_name));
@@ -241,18 +268,27 @@ function renderTiles() {
   setText('tSkill', cov.toFixed(1));
   setText('tSkillHint', `${totalChatsP - (+noPrompt?.chats_count || 0)} из ${totalChatsP} чатов`);
   $('tSkillHint').className = 'tile-foot ' + (cov < 20 ? 'down' : '');
+  setNoData('tSkill', src.prompts === 'csv' && n.chats_count);
 
   // Performance
   setText('tLlmAvg', ms(s.llm_avg_ms));
+  setNoData('tLlmAvg', src.summary === 'csv' && n.llm_avg_ms);
   setText('tLlmMed', ms(s.llm_median_ms));
+  setNoData('tLlmMed', src.summary === 'csv' && n.llm_median_ms);
   setText('tLlmP95', ms(s.llm_p95_ms));
+  setNoData('tLlmP95', src.summary === 'csv' && n.llm_p95_ms);
   setText('tTtftAvg', ms(s.ttft_avg_ms));
+  setNoData('tTtftAvg', src.summary === 'csv' && n.ttft_avg_ms);
   setText('tTtftP95', ms(s.ttft_p95_ms));
+  setNoData('tTtftP95', src.summary === 'csv' && n.ttft_p95_ms);
   setText('tRagAvg', ms(s.rag_avg_ms));
+  setNoData('tRagAvg', src.summary === 'csv' && n.rag_avg_ms);
   setText('tErr',  m.error_rate.toFixed(1));
   setText('tErrHint', 'из всех assistant');
+  setNoData('tErr', src.quality === 'csv' && n.error_rate);
   setText('tTimeout', m.timeout_rate.toFixed(1));
   setText('tTimeoutHint', 'llmMs > 30 с');
+  setNoData('tTimeout', src.quality === 'csv' && n.timeout_rate);
 }
 
 function setTile(id, value, suffix = '', { goal, label } = {}) {
@@ -526,6 +562,17 @@ bindUpload('fileSummary', 'stSummary', (rows) => {
       const v = STATE.summary[k];
       if (typeof v === 'string' && v.match(/^-?[\d.]+$/)) STATE.summary[k] = +v;
     });
+    // Фиксируем поля, которых нет в CSV или они пустые/NULL
+    const summaryFields = [
+      'total_users','new_users','dau_avg','wau','mau',
+      'total_questions','total_chats','avg_questions_per_user','avg_questions_per_chat',
+      'total_tokens','likes','dislikes','total_votes','like_pct',
+      'llm_avg_ms','llm_median_ms','llm_p95_ms','rag_avg_ms','ttft_avg_ms','ttft_p95_ms',
+    ];
+    summaryFields.forEach(k => {
+      const v = rows[0][k];
+      STATE.csvNull[k] = v == null || v === '' || v === 'NULL' || v === 'null';
+    });
     STATE.source.summary = 'csv';
   }
 });
@@ -538,6 +585,8 @@ bindUpload('fileDaily', 'stDaily', (rows) => {
 });
 bindUpload('filePrompts', 'stPrompts', (rows) => {
   STATE.prompts = rows;
+  // chats_count нужен для skill coverage — помечаем null если колонки нет
+  STATE.csvNull.chats_count = rows.length > 0 && rows[0].chats_count == null;
   STATE.source.prompts = 'csv';
 });
 bindUpload('fileLatencyHour', 'stLatencyHour', (rows) => {
@@ -552,24 +601,30 @@ bindUpload('fileLatencyHour', 'stLatencyHour', (rows) => {
 
 bindUpload('fileRetention', 'stRetention', (rows) => {
   const r = rows[0] || {};
-  if (r.d1    != null) STATE.mock.d1_retention  = +r.d1  * 100;
-  if (r.d7    != null) STATE.mock.d7_retention  = +r.d7  * 100;
-  if (r.power != null) STATE.mock.power_users   = +r.power;
-  if (r.stickiness != null) STATE.mock.stickiness_csv = +r.stickiness;
+  const isNull = (v) => v == null || v === '' || v === 'NULL' || v === 'null';
+  STATE.csvNull.d1_retention  = isNull(r.d1);
+  STATE.csvNull.d7_retention  = isNull(r.d7);
+  STATE.csvNull.d30_retention = isNull(r.d30);
+  STATE.csvNull.power_users   = isNull(r.power);
+  if (!isNull(r.d1))    STATE.mock.d1_retention  = +r.d1  * 100;
+  if (!isNull(r.d7))    STATE.mock.d7_retention  = +r.d7  * 100;
+  if (!isNull(r.power)) STATE.mock.power_users   = +r.power;
+  if (!isNull(r.stickiness)) STATE.mock.stickiness_csv = +r.stickiness;
   STATE.source.retention = 'csv';
 });
 
 bindUpload('fileQuality', 'stQuality', (rows) => {
   if (!rows.length) return;
+  const isNull = (v) => v == null || v === '' || v === 'NULL' || v === 'null';
   const avg = (k) => rows.reduce((s, r) => s + (+r[k] || 0), 0) / rows.length;
-  const refusal = avg('refusal_rate');
-  const error   = avg('error_rate');
-  const timeout = avg('timeout_rate');
-  const repeat  = avg('repeat_rate');
-  if (rows[0].refusal_rate != null) STATE.mock.refusal_rate  = refusal  * 100;
-  if (rows[0].error_rate   != null) STATE.mock.error_rate    = error    * 100;
-  if (rows[0].timeout_rate != null) STATE.mock.timeout_rate  = timeout  * 100;
-  if (rows[0].repeat_rate  != null) STATE.mock.repeat_rate   = repeat   * 100;
+  STATE.csvNull.refusal_rate  = isNull(rows[0].refusal_rate);
+  STATE.csvNull.error_rate    = isNull(rows[0].error_rate);
+  STATE.csvNull.timeout_rate  = isNull(rows[0].timeout_rate);
+  STATE.csvNull.repeat_rate   = isNull(rows[0].repeat_rate);
+  if (!STATE.csvNull.refusal_rate) STATE.mock.refusal_rate  = avg('refusal_rate') * 100;
+  if (!STATE.csvNull.error_rate)   STATE.mock.error_rate    = avg('error_rate')   * 100;
+  if (!STATE.csvNull.timeout_rate) STATE.mock.timeout_rate  = avg('timeout_rate') * 100;
+  if (!STATE.csvNull.repeat_rate)  STATE.mock.repeat_rate   = avg('repeat_rate')  * 100;
   STATE.qualityRows = rows;
   STATE.source.quality = 'csv';
 });
@@ -589,6 +644,7 @@ $('resetDemo')?.addEventListener('click', () => {
   STATE.buckets = [...DEMO.latency_buckets];
   STATE.mock    = { ...DEMO.mock };
   STATE.source  = { summary: 'demo', daily: 'demo', prompts: 'demo', latency: 'demo', retention: 'demo', quality: 'demo' };
+  STATE.csvNull = {};
   STATE.qualityRows = [];
   ['stSummary','stDaily','stPrompts','stLatencyHour','stRetention','stQuality'].forEach(id => {
     $(id).textContent = '—'; $(id).className = 'upload-status';

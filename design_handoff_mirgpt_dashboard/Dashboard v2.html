@@ -180,6 +180,13 @@
     color: var(--accent); background: var(--accent-soft);
     padding: 2px 6px; border-radius: 4px;
   }
+  .tile.no-data::after {
+    content: "Н/Д"; position: absolute; top: 10px; right: 10px;
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
+    color: var(--muted); background: var(--bg-2);
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .tile.no-data .tile-val { color: var(--muted); }
   .tile-label { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
   .tile-val { font-family: var(--mono); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.1; }
   .tile-val small { font-size: 13px; color: var(--muted); margin-left: 3px; font-weight: 500; }
@@ -372,24 +379,24 @@
     <span class="src-badge demo" data-source="summary">демо</span>
   </div>
   <div class="tiles">
-    <div class="tile new">
+    <div class="tile">
       <div class="tile-label">D1 retention</div>
       <div class="tile-val"><span id="tD1">—</span><small id="tD1Suf">%</small></div>
       <div class="tile-bar" id="tD1Bar"><i></i></div>
       <div class="tile-foot"><span id="tD1Hint">цель ≥ 50%</span></div>
     </div>
-    <div class="tile new">
+    <div class="tile">
       <div class="tile-label">D7 retention</div>
       <div class="tile-val"><span id="tD7">—</span><small id="tD7Suf">%</small></div>
       <div class="tile-bar" id="tD7Bar"><i></i></div>
       <div class="tile-foot"><span id="tD7Hint">цель ≥ 30%</span></div>
     </div>
-    <div class="tile new">
+    <div class="tile">
       <div class="tile-label">Power users</div>
       <div class="tile-val"><span id="tPower">—</span></div>
       <div class="tile-foot"><span id="tPowerHint">≥ 20 вопросов / нед</span></div>
     </div>
-    <div class="tile new">
+    <div class="tile">
       <div class="tile-label">Stickiness DAU/MAU</div>
       <div class="tile-val"><span id="tStick">—</span></div>
       <div class="tile-foot" id="tStickHint">норма 0.20–0.25</div>
@@ -403,7 +410,7 @@
     <span class="src-badge demo" data-source="summary">демо</span>
   </div>
   <div class="tiles">
-    <div class="tile new">
+    <div class="tile">
       <div class="tile-label">Feedback rate</div>
       <div class="tile-val"><span id="tFb">—</span><small>%</small></div>
       <div class="tile-foot"><span id="tFbHint">—</span><span>цель ≥ 20%</span></div>
@@ -414,12 +421,12 @@
       <div class="tile-bar" id="tLDBar"><i></i><b></b></div>
       <div class="tile-foot" id="tLDHint">—</div>
     </div>
-    <div class="tile new">
+    <div class="tile">
       <div class="tile-label">Refusal rate</div>
       <div class="tile-val"><span id="tRefusal">—</span><small>%</small></div>
       <div class="tile-foot"><span id="tRefusalHint">—</span></div>
     </div>
-    <div class="tile new">
+    <div class="tile">
       <div class="tile-label">Repeat rate</div>
       <div class="tile-val"><span id="tRepeat">—</span><small>%</small></div>
       <div class="tile-foot" id="tRepeatHint">переспрос за 5 мин</div>
@@ -438,17 +445,17 @@
       <div class="tile-val" id="tTok">—</div>
       <div class="tile-foot" id="tTokHint">—</div>
     </div>
-    <div class="tile new">
+    <div class="tile">
       <div class="tile-label">GPU‑sec / chat</div>
       <div class="tile-val"><span id="tGpuSec">—</span><small>с</small></div>
       <div class="tile-foot" id="tGpuSecHint">—</div>
     </div>
-    <div class="tile new">
+    <div class="tile">
       <div class="tile-label">Throughput</div>
       <div class="tile-val"><span id="tThru">—</span><small>tok/с</small></div>
       <div class="tile-foot" id="tThruHint">токенов / GPU‑сек</div>
     </div>
-    <div class="tile new">
+    <div class="tile">
       <div class="tile-label">Skill coverage</div>
       <div class="tile-val"><span id="tSkill">—</span><small>%</small></div>
       <div class="tile-foot" id="tSkillHint">—</div>
@@ -492,12 +499,12 @@
       <div class="tile-val" id="tRagAvg">—</div>
       <div class="tile-foot"><span>поиск документов</span></div>
     </div>
-    <div class="tile new">
+    <div class="tile">
       <div class="tile-label">Error rate</div>
       <div class="tile-val"><span id="tErr">—</span><small>%</small></div>
       <div class="tile-foot"><span id="tErrHint">—</span></div>
     </div>
-    <div class="tile new">
+    <div class="tile">
       <div class="tile-label">Timeout rate</div>
       <div class="tile-val"><span id="tTimeout">—</span><small>%</small></div>
       <div class="tile-foot"><span id="tTimeoutHint">—</span></div>
