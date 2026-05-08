@@ -155,3 +155,16 @@ WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamp
   AND m.metadata->>'llmMs' IS NOT NULL
 GROUP BY EXTRACT(HOUR FROM m.created_at)
 ORDER BY hour_of_day;
+
+
+-- ══════════════════════════════════════════════════════════════════════
+-- ДИАГНОСТИКА: реальные значения feedback_vote
+-- Запустить если лайки/дизлайки показывают 0
+-- ══════════════════════════════════════════════════════════════════════
+SELECT
+    feedback_vote,
+    COUNT(*) AS cnt
+FROM messages
+WHERE feedback_vote IS NOT NULL
+GROUP BY feedback_vote
+ORDER BY cnt DESC;
