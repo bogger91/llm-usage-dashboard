@@ -104,7 +104,7 @@
       });
 
       // dashboard-v2.js уже inline (#mainJs) — заменим снапшот данными
-      const cloneMainJs = docClone.getElementById('mainJs');
+      const cloneMainJs = docClone.querySelector('#mainJs');
       if (cloneMainJs) cloneMainJs.textContent = jsText;
 
       // Заменим внешние <script src=...> на инлайн
