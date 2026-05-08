@@ -10,9 +10,14 @@
 
   async function fetchText(url) {
     if (cache[url]) return cache[url];
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('fetch ' + url + ': ' + r.status);
-    const t = await r.text();
+    // XHR работает на file:// в отличие от fetch()
+    const t = await new Promise((res, rej) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.onload = () => xhr.status < 400 ? res(xhr.responseText) : rej(new Error('XHR ' + url + ': ' + xhr.status));
+      xhr.onerror = () => rej(new Error('XHR failed: ' + url));
+      xhr.send();
+    });
     cache[url] = t;
     return t;
   }
