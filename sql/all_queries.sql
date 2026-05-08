@@ -155,3 +155,90 @@ WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamp
   AND m.metadata->>'llmMs' IS NOT NULL
 GROUP BY EXTRACT(HOUR FROM m.created_at)
 ORDER BY hour_of_day;
+
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 5. RETENTION → экспортировать как: data/retention.csv
+--    Результат: одна строка (d1, d7, power, stickiness)
+--    d1 / d7 возвращаются как доли 0–1, дашборд умножает на 100
+-- ══════════════════════════════════════════════════════════════════════
+WITH first_seen AS (
+    -- Первый день активности каждого пользователя за период
+    SELECT c.user_id, MIN(DATE(m.created_at)) AS d0
+    FROM chats c
+    JOIN messages m ON m.chat_id = c.id
+    WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
+    GROUP BY c.user_id
+),
+returns AS (
+    -- Вернулся ли пользователь на следующий день (D1) и в течение недели (D7)
+    SELECT f.user_id, f.d0,
+        MAX(CASE WHEN DATE(m.created_at) = f.d0 + 1 THEN 1 ELSE 0 END)                    AS d1,
+        MAX(CASE WHEN DATE(m.created_at) BETWEEN f.d0 + 1 AND f.d0 + 7 THEN 1 ELSE 0 END) AS d7
+    FROM first_seen f
+    JOIN chats c2 ON c2.user_id = f.user_id
+    JOIN messages m ON m.chat_id = c2.id
+    GROUP BY f.user_id, f.d0
+),
+power AS (
+    -- Power users: суммарно ≥ 10 ответов на пользователя за каждую неделю периода
+    SELECT COUNT(*) AS power_users FROM (
+        SELECT c.user_id
+        FROM chats c
+        JOIN messages m ON m.chat_id = c.id
+        WHERE m.role = 'assistant'
+          AND m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
+        GROUP BY c.user_id
+        HAVING COUNT(*) >= 10 * GREATEST(1,
+            EXTRACT(week FROM AGE('2026-12-31'::timestamptz, '2026-04-01'::timestamptz))
+        )
+    ) t
+),
+stickiness AS (
+    -- DAU/MAU на дату конца периода
+    SELECT
+        (SELECT COUNT(DISTINCT c.user_id)
+         FROM chats c JOIN messages m ON m.chat_id = c.id
+         WHERE m.created_at >= '2026-12-31'::timestamptz - INTERVAL '1 day'
+           AND m.created_at <  '2026-12-31'::timestamptz)::float
+        / NULLIF(
+            (SELECT COUNT(DISTINCT c.user_id)
+             FROM chats c JOIN messages m ON m.chat_id = c.id
+             WHERE m.created_at >= '2026-12-31'::timestamptz - INTERVAL '30 days'),
+            0
+        ) AS s
+)
+SELECT
+    AVG(d1)::float                      AS d1,
+    AVG(d7)::float                      AS d7,
+    (SELECT power_users FROM power)     AS power,
+    (SELECT s FROM stickiness)          AS stickiness
+FROM returns
+WHERE d0 BETWEEN '2026-04-01'::date AND '2026-12-31'::date;
+
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 6. КАЧЕСТВО ПО ДНЯМ → экспортировать как: data/quality.csv
+--    Серия по датам (date, refusal_rate, error_rate, timeout_rate, repeat_rate)
+--    Значения — доли 0–1, дашборд умножает на 100.
+--
+--    ВНИМАНИЕ: поля refused, status, error_code отсутствуют в текущей схеме.
+--    refusal_rate и error_rate возвращают NULL — заменить на реальные
+--    выражения после появления полей в логах (уточнить у аналитика).
+--    repeat_rate требует расширения fuzzystrmatch (функция levenshtein).
+-- ══════════════════════════════════════════════════════════════════════
+SELECT
+    DATE(m.created_at)                                                          AS date,
+    NULL::float                                                                 AS refusal_rate,
+    NULL::float                                                                 AS error_rate,
+    ROUND(
+        AVG(CASE WHEN (m.metadata->>'llmMs')::numeric > 30000 THEN 1.0 ELSE 0 END)::numeric,
+        4
+    )                                                                           AS timeout_rate,
+    NULL::float                                                                 AS repeat_rate
+FROM messages m
+WHERE m.role = 'assistant'
+  AND m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
+  AND m.metadata->>'llmMs' IS NOT NULL
+GROUP BY DATE(m.created_at)
+ORDER BY date;

@@ -25,7 +25,7 @@ const STATE = {
   latencyHour: [...DEMO.latency_hour],
   buckets: [...DEMO.latency_buckets],
   mock: { ...DEMO.mock },
-  source: { summary: 'demo', daily: 'demo', prompts: 'demo', latency: 'demo' },
+  source: { summary: 'demo', daily: 'demo', prompts: 'demo', latency: 'demo', retention: 'demo', quality: 'demo' },
   period: 30, // дней; demo
 };
 window.STATE = STATE;
@@ -474,6 +474,30 @@ bindUpload('fileLatencyHour', 'stLatencyHour', (rows) => {
   STATE.source.latency = 'csv';
 });
 
+bindUpload('fileRetention', 'stRetention', (rows) => {
+  const r = rows[0] || {};
+  if (r.d1    != null) STATE.mock.d1_retention  = +r.d1  * 100;
+  if (r.d7    != null) STATE.mock.d7_retention  = +r.d7  * 100;
+  if (r.power != null) STATE.mock.power_users   = +r.power;
+  if (r.stickiness != null) STATE.mock.stickiness_csv = +r.stickiness;
+  STATE.source.retention = 'csv';
+});
+
+bindUpload('fileQuality', 'stQuality', (rows) => {
+  if (!rows.length) return;
+  const avg = (k) => rows.reduce((s, r) => s + (+r[k] || 0), 0) / rows.length;
+  const refusal = avg('refusal_rate');
+  const error   = avg('error_rate');
+  const timeout = avg('timeout_rate');
+  const repeat  = avg('repeat_rate');
+  if (rows[0].refusal_rate != null) STATE.mock.refusal_rate  = refusal  * 100;
+  if (rows[0].error_rate   != null) STATE.mock.error_rate    = error    * 100;
+  if (rows[0].timeout_rate != null) STATE.mock.timeout_rate  = timeout  * 100;
+  if (rows[0].repeat_rate  != null) STATE.mock.repeat_rate   = repeat   * 100;
+  STATE.qualityRows = rows;
+  STATE.source.quality = 'csv';
+});
+
 // ── Период ───────────────────────────────────────────────────────────
 document.querySelectorAll('.period-pill').forEach(p => {
   p.addEventListener('click', () => { STATE.period = +p.dataset.period; applyPeriod(); });
@@ -488,8 +512,9 @@ $('resetDemo')?.addEventListener('click', () => {
   STATE.latencyHour = [...DEMO.latency_hour];
   STATE.buckets = [...DEMO.latency_buckets];
   STATE.mock    = { ...DEMO.mock };
-  STATE.source  = { summary: 'demo', daily: 'demo', prompts: 'demo', latency: 'demo' };
-  ['stSummary','stDaily','stPrompts','stLatencyHour'].forEach(id => {
+  STATE.source  = { summary: 'demo', daily: 'demo', prompts: 'demo', latency: 'demo', retention: 'demo', quality: 'demo' };
+  STATE.qualityRows = [];
+  ['stSummary','stDaily','stPrompts','stLatencyHour','stRetention','stQuality'].forEach(id => {
     $(id).textContent = '—'; $(id).className = 'upload-status';
   });
   renderAll();
@@ -509,7 +534,7 @@ if (window.__SNAPSHOT__) {
     });
     const sources = meta.sources || {};
     const csvN = Object.values(sources).filter(s => s === 'csv').length;
-    const labels = { summary: 'Сводка', daily: 'По дням', prompts: 'Промпты', latency: 'Латентность' };
+    const labels = { summary: 'Сводка', daily: 'По дням', prompts: 'Промпты', latency: 'Латентность', retention: 'Retention', quality: 'Качество' };
     const pills = Object.keys(labels).map(k => {
       const s = sources[k] || 'demo';
       return `<span class="src-pill ${s === 'csv' ? 'ok' : 'demo'}">${labels[k]}: ${s === 'csv' ? 'CSV' : 'демо'}</span>`;
@@ -519,7 +544,7 @@ if (window.__SNAPSHOT__) {
       <span class="upload-status ok" style="min-width:auto">${dt}</span>
       <span style="width:1px;height:14px;background:var(--line-2);margin:0 6px"></span>
       ${pills}
-      <span style="margin-left:auto; color:var(--muted); font-family:var(--mono); font-size:11px">${csvN}/4 из CSV · только просмотр</span>`;
+      <span style="margin-left:auto; color:var(--muted); font-family:var(--mono); font-size:11px">${csvN}/6 из CSV · только просмотр</span>`;
   }
   document.getElementById('shareBtn')?.remove();
 }
