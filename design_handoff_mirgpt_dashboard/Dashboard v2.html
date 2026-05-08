@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>МирГПТ — Дашборд v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<style>
+  :root {
+    --bg: #fafaf9;
+    --bg-2: #f3f3f1;
+    --card: #ffffff;
+    --ink: #0e0f12;
+    --ink-2: #3a3d44;
+    --muted: #7a7d85;
+    --line: #e6e5e1;
+    --line-2: #d8d6d0;
+    --accent: oklch(0.55 0.16 258);
+    --accent-soft: oklch(0.96 0.02 258);
+    --accent-ink: oklch(0.38 0.14 258);
+    --warn: oklch(0.58 0.16 25);
+    --warn-soft: oklch(0.96 0.02 25);
+    --good: oklch(0.55 0.12 155);
+    --good-soft: oklch(0.96 0.02 155);
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+
+  /* ── HEADER ───────────────────────────────────────────────── */
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--ink); color: var(--bg);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-weight: 600; font-size: 14px;
+  }
+  .brand-text strong { display: block; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .brand-text small { color: var(--muted); font-size: 11px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .header-spacer { flex: 1; }
+
+  .period-group {
+    display: inline-flex; gap: 2px; padding: 3px;
+    background: var(--bg-2); border-radius: 8px;
+    font-family: var(--mono); font-size: 12px;
+  }
+  .period-pill {
+    padding: 5px 11px; border-radius: 6px; cursor: pointer;
+    color: var(--muted); user-select: none;
+    border: none; background: transparent; font: inherit;
+  }
+  .period-pill:hover { color: var(--ink); }
+  .period-pill.active { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+
+  .period-meta { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+
+  .share-btn {
+    background: var(--ink); color: var(--bg);
+    border: none; border-radius: 6px;
+    padding: 7px 13px; cursor: pointer;
+    font: inherit; font-size: 12px; font-family: var(--mono);
+    letter-spacing: 0.02em;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .share-btn:hover { background: var(--accent-ink); }
+  .share-btn:disabled { opacity: 0.6; cursor: default; }
+  .share-btn .arrow { font-size: 14px; line-height: 1; }
+
+  /* Снапшот‑режим */
+  .src-pill { font-family: var(--mono); font-size: 10px; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .src-pill.ok { background: var(--good-soft); color: var(--good); }
+  .src-pill.demo { background: var(--bg-2); color: var(--muted); }
+  body.snapshot-mode .upload-btn { display: none; }
+  body.snapshot-mode .upload-reset { display: none; }
+
+  /* ── UPLOAD BAR ───────────────────────────────────────────── */
+  .upload {
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-2);
+    padding: 10px 32px;
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .upload-label { color: var(--muted); margin-right: 8px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
+  .upload input[type="file"] { display: none; }
+  .upload-btn {
+    background: var(--card); border: 1px solid var(--line-2); color: var(--ink);
+    padding: 5px 11px; border-radius: 6px; cursor: pointer;
+    font: inherit; font-size: 12px;
+  }
+  .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .upload-status { color: var(--muted); font-family: var(--mono); font-size: 11px; min-width: 8ch; }
+  .upload-status.ok { color: var(--good); }
+  .upload-status.err { color: var(--warn); }
+  .upload-reset { margin-left: auto; background: transparent; border: none; color: var(--muted); cursor: pointer; font: inherit; font-size: 11px; font-family: var(--mono); }
+  .upload-reset:hover { color: var(--ink); }
+
+  /* ── PAGE ─────────────────────────────────────────────────── */
+  main {
+    max-width: 1320px; margin: 0 auto;
+    padding: 28px 32px 96px;
+  }
+
+  .group-head {
+    display: flex; align-items: baseline; gap: 14px;
+    margin: 28px 0 12px;
+  }
+  .group-head:first-child { margin-top: 0; }
+  .group-head h2 {
+    font-family: var(--mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--muted); font-weight: 500;
+  }
+  .group-head .rule { flex: 1; height: 1px; background: var(--line); }
+  .group-head .src-badge {
+    font-family: var(--mono); font-size: 10px;
+    padding: 2px 7px; border-radius: 4px; letter-spacing: 0.08em; text-transform: uppercase;
+    background: var(--accent-soft); color: var(--accent-ink);
+  }
+  .src-badge.demo { background: var(--bg-2); color: var(--muted); }
+
+  /* ── HERO ─────────────────────────────────────────────────── */
+  .hero {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    gap: 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .hero-cell { padding: 22px 24px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+  .hero-cell:last-child { border-right: none; }
+  .hero-cell.headline { background: var(--accent-soft); }
+  .hero-label { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .hero-cell.headline .hero-label { color: var(--accent-ink); }
+  .hero-num { font-family: var(--mono); font-size: 36px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; color: var(--ink); }
+  .hero-cell.headline .hero-num { color: var(--accent-ink); }
+  .hero-num small { font-size: 14px; color: var(--muted); font-weight: 500; margin-left: 6px; }
+  .tile-delta { font-family: var(--mono); font-size: 12px; color: var(--good); }
+  .tile-delta.down { color: var(--warn); }
+  .tile-delta.up   { color: var(--good); }
+  .hero-spark { height: 28px; margin-top: auto; }
+
+  /* ── TILE GRID ────────────────────────────────────────────── */
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .tile {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 18px;
+    min-height: 110px;
+    display: flex; flex-direction: column; gap: 6px;
+    position: relative;
+  }
+  .tile.new::after {
+    content: "NEW"; position: absolute; top: 10px; right: 10px;
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
+    color: var(--accent); background: var(--accent-soft);
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .tile-label { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .tile-val { font-family: var(--mono); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.1; }
+  .tile-val small { font-size: 13px; color: var(--muted); margin-left: 3px; font-weight: 500; }
+  .tile-foot { margin-top: auto; font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .tile-foot.down { color: var(--warn); }
+  .tile-bar { height: 4px; background: var(--bg-2); border-radius: 2px; overflow: hidden; display: flex; }
+  .tile-bar > i { display: block; height: 100%; background: var(--accent); }
+  .tile-bar > b   { display: block; height: 100%; }
+
+  /* ── CHART CARDS ──────────────────────────────────────────── */
+  .charts { display: grid; gap: 12px; }
+  .charts.cols-2 { grid-template-columns: 1fr 1fr; }
+  .charts.cols-3 { grid-template-columns: 2fr 1fr; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 22px 22px;
+  }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+  .card-title { font-size: 13px; font-weight: 600; }
+  .card-sub { color: var(--muted); font-size: 11px; font-family: var(--mono); }
+  .chart-wrap { position: relative; }
+  .chart-wrap canvas { width: 100% !important; }
+  .h-220 { height: 220px; }
+  .h-260 { height: 260px; }
+  .h-300 { height: 300px; }
+
+  /* ── TABLE ────────────────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; padding: 8px 10px;
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--line);
+  }
+  td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  td.num, th:not(:nth-child(-n+3)) { text-align: right; }
+  td.num { font-family: var(--mono); }
+  td.muted { color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+
+  .row-warn td:first-child { box-shadow: inset 2px 0 0 var(--warn); }
+  .row-warn .row-tag {
+    margin-left: 8px;
+    font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--warn); background: var(--warn-soft);
+    padding: 1px 6px; border-radius: 4px;
+  }
+
+  .bar-cell { display: inline-flex; align-items: center; gap: 8px; min-width: 110px; justify-content: flex-end; }
+  .bar-bg { width: 70px; height: 4px; background: var(--bg-2); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); }
+  .bar-fill.warn { background: var(--warn); }
+
+  .chip {
+    display: inline-block; font-family: var(--mono); font-size: 11px;
+    padding: 2px 7px; border-radius: 4px;
+    background: var(--bg-2); color: var(--ink);
+  }
+  .chip-good { background: var(--good-soft); color: var(--good); }
+  .chip-warn { background: var(--warn-soft); color: var(--warn); }
+
+  .footer-note {
+    margin-top: 56px;
+    padding: 18px 22px;
+    border: 1px dashed var(--line-2);
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 12px;
+    background: var(--card);
+  }
+  .footer-note b { color: var(--ink); }
+
+  /* Узкие экраны */
+  @media (max-width: 980px) {
+    .hero { grid-template-columns: 1fr 1fr; }
+    .hero-cell { border-right: none; border-bottom: 1px solid var(--line); }
+    .tiles { grid-template-columns: 1fr 1fr; }
+    .charts.cols-2, .charts.cols-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header data-screen-label="01 Dashboard v2">
+  <div class="brand">
+    <div class="brand-mark">М</div>
+    <div class="brand-text">
+      <strong>МирГПТ</strong>
+      <small>Дашборд использования · v2</small>
+    </div>
+  </div>
+
+  <div class="header-spacer"></div>
+
+  <div class="period-group" role="tablist" aria-label="Период">
+    <button class="period-pill" data-period="7">7 дней</button>
+    <button class="period-pill active" data-period="30">30 дней</button>
+    <button class="period-pill" data-period="90">90 дней</button>
+    <button class="period-pill" data-period="999">Всё</button>
+  </div>
+
+  <div class="period-meta">
+    <span id="periodLabel">последние 30 дней</span> · сравнение vs пред. период
+  </div>
+
+  <button class="share-btn" id="shareBtn" title="Сохранить снапшот в HTML для отправки команде">
+    <span class="arrow">↓</span> Поделиться
+  </button>
+</header>
+
+<!-- Upload bar -->
+<div class="upload">
+  <span class="upload-label">CSV из DBeaver:</span>
+
+  <input type="file" id="fileSummary" accept=".csv">
+  <button class="upload-btn" onclick="document.getElementById('fileSummary').click()">1. Сводка</button>
+  <span class="upload-status" id="stSummary">—</span>
+
+  <input type="file" id="fileDaily" accept=".csv">
+  <button class="upload-btn" onclick="document.getElementById('fileDaily').click()">2. По дням</button>
+  <span class="upload-status" id="stDaily">—</span>
+
+  <input type="file" id="filePrompts" accept=".csv">
+  <button class="upload-btn" onclick="document.getElementById('filePrompts').click()">3. Промпты</button>
+  <span class="upload-status" id="stPrompts">—</span>
+
+  <input type="file" id="fileLatencyHour" accept=".csv">
+  <button class="upload-btn" onclick="document.getElementById('fileLatencyHour').click()">4. Латентность по часам</button>
+  <span class="upload-status" id="stLatencyHour">—</span>
+
+  <button class="upload-reset" id="resetDemo">сбросить на демо</button>
+</div>
+
+<main>
+
+  <!-- ── HERO ────────────────────────────────────────────────── -->
+  <div class="group-head">
+    <h2>Главное</h2>
+    <span class="rule"></span>
+    <span class="src-badge demo" data-source="summary">демо</span>
+  </div>
+
+  <div class="hero">
+    <div class="hero-cell headline">
+      <div class="hero-label">Ответы пользователям</div>
+      <div class="hero-num"><span id="heroQuestions">—</span><small>за период</small></div>
+      <div id="heroQuestionsDelta" class="tile-delta">—</div>
+      <div class="hero-spark" id="sparkQuestions"></div>
+    </div>
+    <div class="hero-cell">
+      <div class="hero-label">Активные польз. (WAU)</div>
+      <div class="hero-num" id="heroWau">—</div>
+      <div id="heroWauDelta" class="tile-delta">—</div>
+      <div class="hero-spark" id="sparkWau"></div>
+    </div>
+    <div class="hero-cell">
+      <div class="hero-label">Удовлетворённость</div>
+      <div class="hero-num"><span id="heroSat">—</span><small>%</small></div>
+      <div id="heroSatHint" class="tile-delta down">—</div>
+      <div class="hero-spark" id="sparkSat"></div>
+    </div>
+    <div class="hero-cell">
+      <div class="hero-label">P95 ответа</div>
+      <div class="hero-num"><span id="heroP95">—</span><small>сек</small></div>
+      <div id="heroP95Hint" class="tile-delta down">—</div>
+      <div class="hero-spark" id="sparkP95"></div>
+    </div>
+  </div>
+
+  <!-- ── ACTIVATION ──────────────────────────────────────────── -->
+  <div class="group-head">
+    <h2>Активация и удержание</h2>
+    <span class="rule"></span>
+    <span class="src-badge demo" data-source="summary">демо</span>
+  </div>
+  <div class="tiles">
+    <div class="tile new">
+      <div class="tile-label">D1 retention</div>
+      <div class="tile-val"><span id="tD1">—</span><small id="tD1Suf">%</small></div>
+      <div class="tile-bar" id="tD1Bar"><i></i></div>
+      <div class="tile-foot"><span id="tD1Hint">цель ≥ 50%</span></div>
+    </div>
+    <div class="tile new">
+      <div class="tile-label">D7 retention</div>
+      <div class="tile-val"><span id="tD7">—</span><small id="tD7Suf">%</small></div>
+      <div class="tile-bar" id="tD7Bar"><i></i></div>
+      <div class="tile-foot"><span id="tD7Hint">цель ≥ 30%</span></div>
+    </div>
+    <div class="tile new">
+      <div class="tile-label">Power users</div>
+      <div class="tile-val"><span id="tPower">—</span></div>
+      <div class="tile-foot"><span id="tPowerHint">≥ 20 вопросов / нед</span></div>
+    </div>
+    <div class="tile new">
+      <div class="tile-label">Stickiness DAU/MAU</div>
+      <div class="tile-val"><span id="tStick">—</span></div>
+      <div class="tile-foot" id="tStickHint">норма 0.20–0.25</div>
+    </div>
+  </div>
+
+  <!-- ── QUALITY ─────────────────────────────────────────────── -->
+  <div class="group-head">
+    <h2>Качество ответов</h2>
+    <span class="rule"></span>
+    <span class="src-badge demo" data-source="summary">демо</span>
+  </div>
+  <div class="tiles">
+    <div class="tile new">
+      <div class="tile-label">Feedback rate</div>
+      <div class="tile-val"><span id="tFb">—</span><small>%</small></div>
+      <div class="tile-foot"><span id="tFbHint">—</span><span>цель ≥ 20%</span></div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">Like : Dislike</div>
+      <div class="tile-val" id="tLD">—</div>
+      <div class="tile-bar" id="tLDBar"><i></i><b></b></div>
+      <div class="tile-foot" id="tLDHint">—</div>
+    </div>
+    <div class="tile new">
+      <div class="tile-label">Refusal rate</div>
+      <div class="tile-val"><span id="tRefusal">—</span><small>%</small></div>
+      <div class="tile-foot"><span id="tRefusalHint">—</span></div>
+    </div>
+    <div class="tile new">
+      <div class="tile-label">Repeat rate</div>
+      <div class="tile-val"><span id="tRepeat">—</span><small>%</small></div>
+      <div class="tile-foot" id="tRepeatHint">переспрос за 5 мин</div>
+    </div>
+  </div>
+
+  <!-- ── GPU & TOKENS ────────────────────────────────────────── -->
+  <div class="group-head">
+    <h2>GPU и токены</h2>
+    <span class="rule"></span>
+    <span class="src-badge demo" data-source="summary">демо</span>
+  </div>
+  <div class="tiles">
+    <div class="tile">
+      <div class="tile-label">Tokens / answer</div>
+      <div class="tile-val" id="tTok">—</div>
+      <div class="tile-foot" id="tTokHint">—</div>
+    </div>
+    <div class="tile new">
+      <div class="tile-label">GPU‑sec / chat</div>
+      <div class="tile-val"><span id="tGpuSec">—</span><small>с</small></div>
+      <div class="tile-foot" id="tGpuSecHint">—</div>
+    </div>
+    <div class="tile new">
+      <div class="tile-label">Throughput</div>
+      <div class="tile-val"><span id="tThru">—</span><small>tok/с</small></div>
+      <div class="tile-foot" id="tThruHint">токенов / GPU‑сек</div>
+    </div>
+    <div class="tile new">
+      <div class="tile-label">Skill coverage</div>
+      <div class="tile-val"><span id="tSkill">—</span><small>%</small></div>
+      <div class="tile-foot" id="tSkillHint">—</div>
+    </div>
+  </div>
+
+  <!-- ── PERFORMANCE ─────────────────────────────────────────── -->
+  <div class="group-head">
+    <h2>Производительность</h2>
+    <span class="rule"></span>
+    <span class="src-badge demo" data-source="latency">демо</span>
+  </div>
+  <div class="tiles">
+    <div class="tile">
+      <div class="tile-label">LLM avg</div>
+      <div class="tile-val" id="tLlmAvg">—</div>
+      <div class="tile-foot"><span>среднее по периоду</span></div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">LLM median</div>
+      <div class="tile-val" id="tLlmMed">—</div>
+      <div class="tile-foot"><span>50‑й перцентиль</span></div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">LLM p95</div>
+      <div class="tile-val" id="tLlmP95">—</div>
+      <div class="tile-foot"><span>SLA ≤ 10 с</span></div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">TTFT avg</div>
+      <div class="tile-val" id="tTtftAvg">—</div>
+      <div class="tile-foot"><span>time‑to‑first‑token</span></div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">TTFT p95</div>
+      <div class="tile-val" id="tTtftP95">—</div>
+      <div class="tile-foot"><span>хвост распределения</span></div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">RAG avg</div>
+      <div class="tile-val" id="tRagAvg">—</div>
+      <div class="tile-foot"><span>поиск документов</span></div>
+    </div>
+    <div class="tile new">
+      <div class="tile-label">Error rate</div>
+      <div class="tile-val"><span id="tErr">—</span><small>%</small></div>
+      <div class="tile-foot"><span id="tErrHint">—</span></div>
+    </div>
+    <div class="tile new">
+      <div class="tile-label">Timeout rate</div>
+      <div class="tile-val"><span id="tTimeout">—</span><small>%</small></div>
+      <div class="tile-foot"><span id="tTimeoutHint">—</span></div>
+    </div>
+  </div>
+
+  <!-- ── CHARTS: ACTIVITY + FEEDBACK ─────────────────────────── -->
+  <div class="group-head">
+    <h2>Динамика по дням</h2>
+    <span class="rule"></span>
+    <span class="src-badge demo" data-source="daily">демо</span>
+  </div>
+  <div class="charts cols-2">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Вопросы и активные пользователи</div>
+        <div class="card-sub">бар + линия</div>
+      </div>
+      <div class="chart-wrap h-260"><canvas id="chartActivity"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Лайки, дизлайки и feedback rate</div>
+        <div class="card-sub">стэк + % с оценкой</div>
+      </div>
+      <div class="chart-wrap h-260"><canvas id="chartFeedback"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── CHARTS: LATENCY ─────────────────────────────────────── -->
+  <div class="group-head">
+    <h2>Латентность · распределение</h2>
+    <span class="rule"></span>
+    <span class="src-badge demo" data-source="latency">демо</span>
+  </div>
+  <div class="charts cols-3">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Среднее и p95 по часам суток</div>
+        <div class="card-sub">мс · бар + линия p95</div>
+      </div>
+      <div class="chart-wrap h-260"><canvas id="chartLatencyHour"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Гистограмма ответов</div>
+        <div class="card-sub">бакеты времени</div>
+      </div>
+      <div class="chart-wrap h-260"><canvas id="chartLatencyHist"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── PROMPTS ─────────────────────────────────────────────── -->
+  <div class="group-head">
+    <h2>Системные промпты</h2>
+    <span class="rule"></span>
+    <span class="src-badge demo" data-source="prompts">демо</span>
+  </div>
+  <div class="charts cols-2">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Топ промптов · чаты</div>
+        <div class="card-sub">«без промпта» подсвечено</div>
+      </div>
+      <div class="chart-wrap h-300"><canvas id="chartPrompts"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Глубина разговора</div>
+        <div class="card-sub">распределение чатов по числу вопросов</div>
+      </div>
+      <div class="chart-wrap h-300"><canvas id="chartDepth"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts" style="margin-top:12px">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Детализация по промптам</div>
+        <div class="card-sub">сортировка по чатам · подсветка дизлайков</div>
+      </div>
+      <div id="promptTable"></div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <b>Что в прототипе.</b> Источник: ваши CSV из <code style="font-family:var(--mono)">all_queries.sql</code>
+    + демо‑данные с тех же скриншотов. Метрики, которых пока нет в SQL
+    (D1/D7 retention, refusal, repeat, error/timeout, top‑user share, conversation depth) — показаны
+    из мок‑набора. Следующий шаг — расширить SQL и заменить мок на реальные значения.
+  </div>
+
+</main>
+
+<script src="dashboard-v2-demo.js"></script>
+<script src="dashboard-v2.js"></script>
+<script src="share.js"></script>
+
+</body>
+</html>
