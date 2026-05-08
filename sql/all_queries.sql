@@ -55,11 +55,11 @@ activity_stats AS (
 ),
 ratings_stats AS (
     SELECT
-        COUNT(*) FILTER (WHERE m.feedback_vote = 'like')                        AS likes,
-        COUNT(*) FILTER (WHERE m.feedback_vote = 'dislike')                     AS dislikes,
+        COUNT(*) FILTER (WHERE m.feedback_vote = 'up')                          AS likes,
+        COUNT(*) FILTER (WHERE m.feedback_vote = 'down')                        AS dislikes,
         COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL)                     AS total_votes,
         ROUND(
-            (COUNT(*) FILTER (WHERE m.feedback_vote = 'like')::numeric
+            (COUNT(*) FILTER (WHERE m.feedback_vote = 'up')::numeric
             / NULLIF(COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100)::numeric, 1
         )                                                                       AS like_pct
     FROM messages m
@@ -103,8 +103,8 @@ SELECT
     COUNT(m.id) FILTER (WHERE m.role = 'user')                                  AS questions,
     COUNT(DISTINCT c.user_id)                                                   AS active_users,
     COUNT(DISTINCT c.id)                                                        AS chats,
-    COUNT(*) FILTER (WHERE m.role = 'assistant' AND m.feedback_vote = 'like')   AS likes,
-    COUNT(*) FILTER (WHERE m.role = 'assistant' AND m.feedback_vote = 'dislike') AS dislikes
+    COUNT(*) FILTER (WHERE m.role = 'assistant' AND m.feedback_vote = 'up')     AS likes,
+    COUNT(*) FILTER (WHERE m.role = 'assistant' AND m.feedback_vote = 'down')   AS dislikes
 FROM chats c
 JOIN messages m ON m.chat_id = c.id
 WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
@@ -120,14 +120,14 @@ SELECT
     s.category,
     COUNT(DISTINCT c.id)                                                        AS chats_count,
     COUNT(DISTINCT c.user_id)                                                   AS unique_users,
-    COUNT(m.id) FILTER (WHERE m.feedback_vote = 'like')                         AS likes,
-    COUNT(m.id) FILTER (WHERE m.feedback_vote = 'dislike')                      AS dislikes,
+    COUNT(m.id) FILTER (WHERE m.feedback_vote = 'up')                           AS likes,
+    COUNT(m.id) FILTER (WHERE m.feedback_vote = 'down')                         AS dislikes,
     ROUND(
         (COUNT(DISTINCT c.id)::numeric
         / NULLIF(SUM(COUNT(DISTINCT c.id)) OVER (), 0) * 100)::numeric, 1
     )                                                                           AS pct_of_total,
     ROUND(
-        (COUNT(m.id) FILTER (WHERE m.feedback_vote = 'dislike')::numeric
+        (COUNT(m.id) FILTER (WHERE m.feedback_vote = 'down')::numeric
         / NULLIF(COUNT(m.id) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100)::numeric, 1
     )                                                                           AS dislike_pct
 FROM chats c
@@ -155,16 +155,3 @@ WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamp
   AND m.metadata->>'llmMs' IS NOT NULL
 GROUP BY EXTRACT(HOUR FROM m.created_at)
 ORDER BY hour_of_day;
-
-
--- ══════════════════════════════════════════════════════════════════════
--- ДИАГНОСТИКА: реальные значения feedback_vote
--- Запустить если лайки/дизлайки показывают 0
--- ══════════════════════════════════════════════════════════════════════
-SELECT
-    feedback_vote,
-    COUNT(*) AS cnt
-FROM messages
-WHERE feedback_vote IS NOT NULL
-GROUP BY feedback_vote
-ORDER BY cnt DESC;
