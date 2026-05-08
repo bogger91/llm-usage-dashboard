@@ -62,16 +62,12 @@
       // 1) Собираем тексты ресурсов параллельно
       setText('Собираю ресурсы…');
 
-      // Локальные JS читаем через абсолютный src тега — fetch('dashboard-v2.js') не работает на file://
-      const getScriptSrc = (pattern) => {
-        const el = [...document.querySelectorAll('script[src]')]
-          .find(s => pattern.test(s.getAttribute('src') || ''));
-        if (!el) throw new Error('script not found: ' + pattern);
-        return fetchText(el.src);
-      };
+      // dashboard-v2.js встроен как inline <script id="mainJs"> — читаем из DOM без fetch
+      const mainJsEl = document.getElementById('mainJs');
+      if (!mainJsEl) throw new Error('mainJs script not found in DOM');
+      const jsText = mainJsEl.textContent;
 
-      const [jsText, chartJsText, papaText, fontCssJBM, fontCssInter] = await Promise.all([
-        getScriptSrc(/dashboard-v2\.js$/),
+      const [chartJsText, papaText, fontCssJBM, fontCssInter] = await Promise.all([
         fetchText('https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js'),
         fetchText('https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js'),
         inlineGoogleFontsCss('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap'),
@@ -107,6 +103,10 @@
         c.style.removeProperty('height');
       });
 
+      // dashboard-v2.js уже inline (#mainJs) — заменим снапшот данными
+      const cloneMainJs = docClone.getElementById('mainJs');
+      if (cloneMainJs) cloneMainJs.textContent = jsText;
+
       // Заменим внешние <script src=...> на инлайн
       docClone.querySelectorAll('script[src]').forEach(s => {
         const src = s.getAttribute('src') || '';
@@ -115,8 +115,6 @@
           inlineCode =
             'window.DEMO = ' + JSON.stringify(snapshot) + ';\n' +
             'window.__SNAPSHOT__ = ' + JSON.stringify(meta) + ';';
-        } else if (/dashboard-v2\.js$/.test(src)) {
-          inlineCode = jsText;
         } else if (/share\.js$/.test(src)) {
           s.remove();
           return;
