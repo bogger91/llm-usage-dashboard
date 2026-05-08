@@ -26,9 +26,63 @@ const STATE = {
   buckets: [...DEMO.latency_buckets],
   mock: { ...DEMO.mock },
   source: { summary: 'demo', daily: 'demo', prompts: 'demo', latency: 'demo', retention: 'demo', quality: 'demo' },
-  period: 30, // дней; demo
+  period: 30,
+  dailyFiltered: [...DEMO.daily],
+  summaryFiltered: { ...DEMO.summary },
+  prevFiltered: { ...DEMO.prev },
 };
 window.STATE = STATE;
+
+// ── Фильтрация по периоду ─────────────────────────────────────────────
+function filteredDaily() {
+  const days = STATE.daily.slice().sort((a, b) => a.day < b.day ? -1 : 1);
+  if (STATE.period === 999 || !days.length) return days;
+  const maxDay = days[days.length - 1].day;
+  const cutoff = new Date(maxDay);
+  cutoff.setDate(cutoff.getDate() - STATE.period + 1);
+  const cutStr = cutoff.toISOString().slice(0, 10);
+  return days.filter(d => d.day >= cutStr);
+}
+
+function computeFromDaily(days) {
+  const total_questions  = days.reduce((s, d) => s + (+d.questions  || 0), 0);
+  const total_chats      = days.reduce((s, d) => s + (+d.chats      || 0), 0);
+  const likes            = days.reduce((s, d) => s + (+d.likes      || 0), 0);
+  const dislikes         = days.reduce((s, d) => s + (+d.dislikes   || 0), 0);
+  const total_votes      = likes + dislikes;
+  const like_pct         = total_votes ? (likes / total_votes) * 100 : null;
+  const uniqueUsers      = new Set(days.flatMap(d => d._users || []));
+  const wau              = Math.max(...days.map(d => +d.active_users || 0));
+  const dau_avg          = days.length ? days.reduce((s, d) => s + (+d.active_users || 0), 0) / days.length : 0;
+  return { total_questions, total_chats, likes, dislikes, total_votes, like_pct, wau, dau_avg };
+}
+
+function recomputeFiltered() {
+  const days = filteredDaily();
+  STATE.dailyFiltered = days;
+
+  const agg = computeFromDaily(days);
+
+  // Поля из daily перекрывают summary; latency/tokens берём из summary как есть
+  STATE.summaryFiltered = { ...STATE.summary, ...agg };
+
+  // Пред. период: окно той же длины до начала текущего
+  if (STATE.period !== 999 && days.length) {
+    const sorted = STATE.daily.slice().sort((a, b) => a.day < b.day ? -1 : 1);
+    const maxDay = sorted[sorted.length - 1].day;
+    const cutoff = new Date(maxDay);
+    cutoff.setDate(cutoff.getDate() - STATE.period + 1);
+    const prevEnd = new Date(cutoff); prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate() - STATE.period + 1);
+    const prevEndStr   = prevEnd.toISOString().slice(0, 10);
+    const prevStartStr = prevStart.toISOString().slice(0, 10);
+    const prevDays = sorted.filter(d => d.day >= prevStartStr && d.day <= prevEndStr);
+    const prevAgg  = computeFromDaily(prevDays);
+    STATE.prevFiltered = { ...STATE.prev, ...prevAgg };
+  } else {
+    STATE.prevFiltered = { ...STATE.prev };
+  }
+}
 
 const charts = {};
 
@@ -68,18 +122,17 @@ function setDelta(id, d) {
 
 // ── Период (фильтр демо/CSV daily) ───────────────────────────────────
 function applyPeriod() {
-  // Просто перерисуем графики с тем же массивом — для прототипа фильтрация
-  // оставлена символичной (период подсвечивается, а данные те же).
   setText('periodLabel', STATE.period === 999 ? 'весь период' : `последние ${STATE.period} дней`);
   document.querySelectorAll('.period-pill').forEach(p => {
     p.classList.toggle('active', +p.dataset.period === STATE.period);
   });
+  recomputeFiltered();
   renderAll();
 }
 
 // ── Рендер: HERO ─────────────────────────────────────────────────────
 function renderHero() {
-  const s = STATE.summary, p = STATE.prev;
+  const s = STATE.summaryFiltered, p = STATE.prevFiltered;
 
   setText('heroQuestions', fmt(s.total_questions));
   setDelta('heroQuestionsDelta', delta(s.total_questions, p.total_questions));
@@ -99,10 +152,10 @@ function renderHero() {
     : `в пределах SLA ${slaSec} с`);
   $('heroP95Hint').className = 'tile-delta ' + (overSla ? 'down' : 'up');
 
-  // Спарклайны
-  drawSpark('sparkQuestions', STATE.daily.map(d => +d.questions), C.accent, true);
-  drawSpark('sparkWau',       STATE.daily.map(d => +d.active_users), C.good, false);
-  drawSpark('sparkSat',       STATE.daily.map(d => {
+  // Спарклайны по отфильтрованному диапазону
+  drawSpark('sparkQuestions', STATE.dailyFiltered.map(d => +d.questions), C.accent, true);
+  drawSpark('sparkWau',       STATE.dailyFiltered.map(d => +d.active_users), C.good, false);
+  drawSpark('sparkSat',       STATE.dailyFiltered.map(d => {
     const t = (+d.likes) + (+d.dislikes);
     return t ? (+d.likes / t) * 100 : null;
   }), C.accent, false);
@@ -135,7 +188,7 @@ function drawSpark(id, values, stroke, area) {
 
 // ── Рендер: тайлы ────────────────────────────────────────────────────
 function renderTiles() {
-  const s = STATE.summary;
+  const s = STATE.summaryFiltered;
   const m = STATE.mock;
 
   // Активация и удержание
@@ -245,16 +298,18 @@ function makeChart(id, config) {
 }
 
 function renderCharts() {
+  const daily = STATE.dailyFiltered;
+
   // 1. Активность по дням
   makeChart('chartActivity', {
     type: 'bar',
     data: {
-      labels: STATE.daily.map(d => d.day.slice(5)),
+      labels: daily.map(d => d.day.slice(5)),
       datasets: [
-        { label: 'Вопросы', data: STATE.daily.map(d => +d.questions),
+        { label: 'Вопросы', data: daily.map(d => +d.questions),
           backgroundColor: C.accentSoft, borderColor: C.accent, borderWidth: 1.5, borderRadius: 3,
           yAxisID: 'y' },
-        { label: 'Активные пользователи', data: STATE.daily.map(d => +d.active_users),
+        { label: 'Активные пользователи', data: daily.map(d => +d.active_users),
           type: 'line', borderColor: C.good, backgroundColor: 'transparent',
           pointRadius: 2.5, pointBackgroundColor: C.good, tension: .3, yAxisID: 'y1' },
       ],
@@ -272,14 +327,14 @@ function renderCharts() {
   makeChart('chartFeedback', {
     type: 'bar',
     data: {
-      labels: STATE.daily.map(d => d.day.slice(5)),
+      labels: daily.map(d => d.day.slice(5)),
       datasets: [
-        { label: 'Лайки',    data: STATE.daily.map(d => +d.likes),
+        { label: 'Лайки',    data: daily.map(d => +d.likes),
           backgroundColor: C.goodSoft, borderColor: C.good, borderWidth: 1.5, stack: 'v', yAxisID: 'y' },
-        { label: 'Дизлайки', data: STATE.daily.map(d => +d.dislikes),
+        { label: 'Дизлайки', data: daily.map(d => +d.dislikes),
           backgroundColor: C.warnSoft, borderColor: C.warn, borderWidth: 1.5, stack: 'v', yAxisID: 'y' },
         { label: 'Feedback rate, %',
-          data: STATE.daily.map(d => d.questions ? ((+d.likes + +d.dislikes) / +d.questions) * 100 : 0),
+          data: daily.map(d => d.questions ? ((+d.likes + +d.dislikes) / +d.questions) * 100 : 0),
           type: 'line', borderColor: C.accent, backgroundColor: 'transparent',
           pointRadius: 2, tension: .3, yAxisID: 'y1', borderDash: [4, 3] },
       ],
@@ -401,6 +456,25 @@ function renderPromptTable() {
     </table>`;
 }
 
+// ── Период загруженных данных ─────────────────────────────────────────
+function updateDataRange() {
+  const wrap = $('dataRangeWrap');
+  const el   = $('dataRange');
+  if (!wrap || !el) return;
+
+  const days = STATE.daily.map(r => r.day).filter(Boolean).sort();
+  if (!days.length) { wrap.style.display = 'none'; return; }
+
+  const fmt_d = (iso) => {
+    const [y, m, d] = iso.split('-');
+    return `${d}.${m}.${y}`;
+  };
+
+  const min = days[0], max = days[days.length - 1];
+  el.textContent = min === max ? fmt_d(min) : `${fmt_d(min)} — ${fmt_d(max)}`;
+  wrap.style.display = '';
+}
+
 // ── Главный рендер ───────────────────────────────────────────────────
 function renderAll() {
   renderHero();
@@ -408,6 +482,7 @@ function renderAll() {
   renderCharts();
   renderPromptTable();
   updateSourceBadges();
+  updateDataRange();
 }
 
 function updateSourceBadges() {
@@ -433,6 +508,7 @@ function bindUpload(inputId, statusId, handler) {
       handler(rows);
       $(statusId).textContent = '✓ ' + file.name;
       $(statusId).className = 'upload-status ok';
+      recomputeFiltered();
       renderAll();
     } catch (err) {
       $(statusId).textContent = '✗ ошибка';
@@ -517,6 +593,7 @@ $('resetDemo')?.addEventListener('click', () => {
   ['stSummary','stDaily','stPrompts','stLatencyHour','stRetention','stQuality'].forEach(id => {
     $(id).textContent = '—'; $(id).className = 'upload-status';
   });
+  recomputeFiltered();
   renderAll();
 });
 
@@ -550,5 +627,4 @@ if (window.__SNAPSHOT__) {
 }
 
 // ── Старт ────────────────────────────────────────────────────────────
-renderAll();
 applyPeriod();
