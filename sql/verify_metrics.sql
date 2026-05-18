@@ -75,7 +75,7 @@ SELECT
 
     ROUND(
         COUNT(DISTINCT (u.id, DATE(m.created_at)))::numeric
-        / NULLIF(DATE_PART('day', '2026-12-31'::timestamptz - '2026-04-01'::timestamptz), 0),
+        / NULLIF(DATE_PART('day', '2026-12-31'::timestamptz - '2026-04-01'::timestamptz)::numeric, 0),
         1
     )                                                           AS dau_avg_correct
 FROM users u
@@ -147,7 +147,7 @@ dau_avg_calc AS (
     SELECT
         ROUND(
             COUNT(DISTINCT (c.user_id, DATE(m.created_at)))::numeric
-            / NULLIF(DATE_PART('day', '2026-12-31'::timestamptz - '2026-04-01'::timestamptz), 0),
+            / NULLIF(DATE_PART('day', '2026-12-31'::timestamptz - '2026-04-01'::timestamptz)::numeric, 0),
             1
         ) AS v
     FROM chats c JOIN messages m ON m.chat_id = c.id
