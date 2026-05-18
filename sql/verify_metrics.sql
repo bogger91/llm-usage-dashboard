@@ -99,24 +99,24 @@ SELECT
     -- Как считает дашборд (неверно — знаменатель вопросы)
     ROUND(
         COUNT(*) FILTER (WHERE role = 'assistant' AND feedback_vote IS NOT NULL)::numeric
-        / NULLIF(COUNT(*) FILTER (WHERE role = 'user'), 0) * 100,
+        / NULLIF(COUNT(*) FILTER (WHERE role = 'user'), 0)::numeric * 100,
         1
     )                                                           AS feedback_rate_wrong_pct,
 
     -- Правильно — знаменатель ответы ассистента
     ROUND(
         COUNT(*) FILTER (WHERE role = 'assistant' AND feedback_vote IS NOT NULL)::numeric
-        / NULLIF(COUNT(*) FILTER (WHERE role = 'assistant'), 0) * 100,
+        / NULLIF(COUNT(*) FILTER (WHERE role = 'assistant'), 0)::numeric * 100,
         1
     )                                                           AS feedback_rate_correct_pct,
 
     CASE
         WHEN ROUND(
             COUNT(*) FILTER (WHERE role = 'assistant' AND feedback_vote IS NOT NULL)::numeric
-            / NULLIF(COUNT(*) FILTER (WHERE role = 'user'), 0) * 100, 1)
+            / NULLIF(COUNT(*) FILTER (WHERE role = 'user'), 0)::numeric * 100, 1)
            = ROUND(
             COUNT(*) FILTER (WHERE role = 'assistant' AND feedback_vote IS NOT NULL)::numeric
-            / NULLIF(COUNT(*) FILTER (WHERE role = 'assistant'), 0) * 100, 1)
+            / NULLIF(COUNT(*) FILTER (WHERE role = 'assistant'), 0)::numeric * 100, 1)
         THEN 'OK — совпадают'
         ELSE 'РАСХОЖДЕНИЕ — дашборд показывает неверный % feedback rate'
     END                                                         AS check_feedback_rate
@@ -166,7 +166,7 @@ SELECT
     (SELECT cnt FROM mau_last)                                  AS mau_last_30d,
     ROUND(
         (SELECT cnt FROM dau_last)::numeric
-        / NULLIF((SELECT cnt FROM mau_last), 0),
+        / NULLIF((SELECT cnt FROM mau_last), 0)::numeric,
         3
     )                                                           AS stickiness_correct,
 
@@ -175,7 +175,7 @@ SELECT
     (SELECT cnt FROM mau_full)                                  AS mau_from_now,
     ROUND(
         (SELECT v FROM dau_avg_calc)
-        / NULLIF((SELECT cnt FROM mau_full), 0),
+        / NULLIF((SELECT cnt FROM mau_full), 0)::numeric,
         3
     )                                                           AS stickiness_dashboard;
 
@@ -269,9 +269,9 @@ SELECT
     f.likes,
     f.dislikes,
     f.total_votes,
-    ROUND(f.likes::numeric / NULLIF(f.total_votes, 0) * 100, 1)    AS like_pct,
+    ROUND(f.likes::numeric / NULLIF(f.total_votes, 0)::numeric * 100, 1)    AS like_pct,
     -- Feedback rate правильный (знаменатель = ответы)
-    ROUND(f.total_votes::numeric / NULLIF(a.total_answers, 0) * 100, 1) AS feedback_rate_pct,
+    ROUND(f.total_votes::numeric / NULLIF(a.total_answers, 0)::numeric * 100, 1) AS feedback_rate_pct,
     l.llm_avg_ms,
     l.llm_median_ms,
     l.llm_p95_ms,
