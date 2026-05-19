@@ -848,11 +848,13 @@ function renderTiles() {
   setText('tPower', fmt(m.power_users));
   setText('tPowerHint', '≥ 20 вопросов / нед');
   setNoData('tPower', src.retention === 'csv' && n.power_users);
-  const stick = s.mau ? (s.dau_avg / s.mau) : 0;
+  const stick = (src.retention === 'csv' && STATE.mock.stickiness_csv != null)
+    ? STATE.mock.stickiness_csv
+    : (s.mau ? (s.dau_avg / s.mau) : 0);
   setText('tStick', stick.toFixed(2));
   setText('tStickHint', stick < 0.1 ? 'низкая (норма 0.20–0.25)' : 'норма 0.20–0.25');
   $('tStickHint').className = 'tile-foot ' + (stick < 0.1 ? 'down' : '');
-  setNoData('tStick', src.summary === 'csv' && (n.mau || n.dau_avg));
+  setNoData('tStick', src.retention === 'csv' && STATE.mock.stickiness_csv == null && (n.mau || n.dau_avg));
 
   // Качество
   const fbRate = s.total_questions ? (s.total_votes / s.total_questions) * 100 : 0;
