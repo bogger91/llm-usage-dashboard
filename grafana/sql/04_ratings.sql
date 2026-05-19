@@ -3,12 +3,12 @@
 
 -- Итоговое соотношение за период
 SELECT
-    COUNT(*) FILTER (WHERE m.feedback_vote = 'like')                            AS likes,
-    COUNT(*) FILTER (WHERE m.feedback_vote = 'dislike')                         AS dislikes,
+    COUNT(*) FILTER (WHERE m.feedback_vote = 'up')                              AS likes,
+    COUNT(*) FILTER (WHERE m.feedback_vote = 'down')                            AS dislikes,
     COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL)                         AS total_votes,
     ROUND(
-        COUNT(*) FILTER (WHERE m.feedback_vote = 'like')::numeric
-        / NULLIF(COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100,
+        COUNT(*) FILTER (WHERE m.feedback_vote = 'up')::numeric
+        / NULLIF(COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL), 0)::numeric * 100,
         1
     )                                                                           AS like_pct
 
@@ -22,8 +22,8 @@ WHERE m.created_at BETWEEN :'date_from' AND :'date_to'
 -- Экспортировать отдельно в data/ratings_daily.csv
 SELECT
     DATE(m.created_at)                                                          AS day,
-    COUNT(*) FILTER (WHERE m.feedback_vote = 'like')                            AS likes,
-    COUNT(*) FILTER (WHERE m.feedback_vote = 'dislike')                         AS dislikes
+    COUNT(*) FILTER (WHERE m.feedback_vote = 'up')                              AS likes,
+    COUNT(*) FILTER (WHERE m.feedback_vote = 'down')                            AS dislikes
 FROM messages m
 JOIN chats c ON c.id = m.chat_id
 WHERE m.created_at BETWEEN :'date_from' AND :'date_to'
@@ -37,11 +37,11 @@ ORDER BY day;
 -- Экспортировать отдельно в data/ratings_by_prompt.csv
 SELECT
     COALESCE(s.name, '(без промпта)')                                           AS prompt_name,
-    COUNT(*) FILTER (WHERE m.feedback_vote = 'like')                            AS likes,
-    COUNT(*) FILTER (WHERE m.feedback_vote = 'dislike')                         AS dislikes,
+    COUNT(*) FILTER (WHERE m.feedback_vote = 'up')                              AS likes,
+    COUNT(*) FILTER (WHERE m.feedback_vote = 'down')                            AS dislikes,
     ROUND(
-        COUNT(*) FILTER (WHERE m.feedback_vote = 'dislike')::numeric
-        / NULLIF(COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100,
+        COUNT(*) FILTER (WHERE m.feedback_vote = 'down')::numeric
+        / NULLIF(COUNT(*) FILTER (WHERE m.feedback_vote IS NOT NULL), 0)::numeric * 100,
         1
     )                                                                           AS dislike_pct
 FROM messages m

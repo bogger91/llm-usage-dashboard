@@ -17,14 +17,14 @@ SELECT
         1
     )                                                                           AS dau_avg,
 
-    -- WAU: уникальных пользователей за последние 7 дней
+    -- WAU: уникальных пользователей за последние 7 дней до конца периода
     COUNT(DISTINCT u.id) FILTER (
-        WHERE m.created_at >= NOW() - INTERVAL '7 days'
+        WHERE m.created_at >= :'date_to'::timestamptz - INTERVAL '7 days'
     )                                                                           AS wau,
 
-    -- MAU: уникальных пользователей за последние 30 дней
+    -- MAU: уникальных пользователей за последние 30 дней до конца периода
     COUNT(DISTINCT u.id) FILTER (
-        WHERE m.created_at >= NOW() - INTERVAL '30 days'
+        WHERE m.created_at >= :'date_to'::timestamptz - INTERVAL '30 days'
     )                                                                           AS mau
 
 FROM users u

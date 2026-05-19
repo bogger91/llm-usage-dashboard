@@ -16,18 +16,18 @@ users_stats AS (
             WHERE u.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
         )                                                                       AS new_users,
         ROUND(
-            (COUNT(DISTINCT (u.id::text || DATE(m.created_at)::text))::numeric
+            COUNT(DISTINCT (u.id, DATE(m.created_at)))::numeric
             / NULLIF(
-                DATE_PART('day', '2026-12-31'::timestamptz - '2026-04-01'::timestamptz),
+                DATE_PART('day', '2026-12-31'::timestamptz - '2026-04-01'::timestamptz)::numeric,
                 0
-            ))::numeric,
+            ),
             1
         )                                                                       AS dau_avg,
         COUNT(DISTINCT u.id) FILTER (
-            WHERE m.created_at >= NOW() - INTERVAL '7 days'
+            WHERE m.created_at >= '2026-12-31'::timestamptz - INTERVAL '7 days'
         )                                                                       AS wau,
         COUNT(DISTINCT u.id) FILTER (
-            WHERE m.created_at >= NOW() - INTERVAL '30 days'
+            WHERE m.created_at >= '2026-12-31'::timestamptz - INTERVAL '30 days'
         )                                                                       AS mau
     FROM users u
     JOIN chats c ON c.user_id = u.id

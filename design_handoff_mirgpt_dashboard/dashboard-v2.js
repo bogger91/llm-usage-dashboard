@@ -155,7 +155,7 @@ function renderHero() {
   setDelta('heroWauDelta', delta(s.wau, p.wau));
 
   setText('heroSat', s.like_pct == null ? '—' : (+s.like_pct).toFixed(1));
-  const fbRate = s.total_questions ? (s.total_votes / s.total_questions) * 100 : 0;
+  const fbRate = s.total_answers ? (s.total_votes / s.total_answers) * 100 : 0;
   setText('heroSatHint', `оценили лишь ${fbRate.toFixed(1)}% ответов`);
 
   setText('heroP95', (s.llm_p95_ms / 1000).toFixed(1));
@@ -215,18 +215,20 @@ function renderTiles() {
   setTile('tD30', m.d30_retention, '%', { goal: 15, label: 'цель ≥ 15%' });
   setNoData('tD30', src.retention === 'csv' && n.d30_retention);
   setText('tPower', fmt(m.power_users));
-  setText('tPowerHint', '≥ 20 вопросов / нед');
+  setText('tPowerHint', '≥ 10 ответов / нед');
   setNoData('tPower', src.retention === 'csv' && n.power_users);
-  const stick = s.mau ? (s.dau_avg / s.mau) : 0;
+  const stick = (src.retention === 'csv' && STATE.mock.stickiness_csv != null)
+    ? STATE.mock.stickiness_csv
+    : (s.mau ? (s.dau_avg / s.mau) : 0);
   setText('tStick', stick.toFixed(2));
   setText('tStickHint', stick < 0.1 ? 'низкая (норма 0.20–0.25)' : 'норма 0.20–0.25');
   $('tStickHint').className = 'tile-foot ' + (stick < 0.1 ? 'down' : '');
-  setNoData('tStick', src.summary === 'csv' && (n.mau || n.dau_avg));
+  setNoData('tStick', src.retention === 'csv' && STATE.mock.stickiness_csv == null && (n.mau || n.dau_avg));
 
   // Качество
-  const fbRate = s.total_questions ? (s.total_votes / s.total_questions) * 100 : 0;
+  const fbRate = s.total_answers ? (s.total_votes / s.total_answers) * 100 : 0;
   setText('tFb', fbRate.toFixed(1));
-  setText('tFbHint', `${fmt(s.total_votes)} / ${fmt(s.total_questions)}`);
+  setText('tFbHint', `${fmt(s.total_votes)} / ${fmt(s.total_answers)}`);
   setNoData('tFb', src.summary === 'csv' && (n.total_votes || n.total_questions));
   setText('tLD', `${fmt(s.likes)} : ${fmt(s.dislikes)}`);
   const dPct = s.total_votes ? (s.dislikes / s.total_votes) * 100 : 0;
