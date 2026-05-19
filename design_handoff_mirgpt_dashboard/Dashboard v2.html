@@ -343,21 +343,9 @@
 <div class="upload">
   <span class="upload-label">CSV из DBeaver:</span>
 
-  <input type="file" id="fileSummary" accept=".csv">
-  <button class="upload-btn" onclick="document.getElementById('fileSummary').click()">1. Сводка</button>
-  <span class="upload-status" id="stSummary">—</span>
-
-  <input type="file" id="fileDaily" accept=".csv">
-  <button class="upload-btn" onclick="document.getElementById('fileDaily').click()">2. По дням</button>
-  <span class="upload-status" id="stDaily">—</span>
-
-  <input type="file" id="filePrompts" accept=".csv">
-  <button class="upload-btn" onclick="document.getElementById('filePrompts').click()">3. Промпты</button>
-  <span class="upload-status" id="stPrompts">—</span>
-
-  <input type="file" id="fileLatencyHour" accept=".csv">
-  <button class="upload-btn" onclick="document.getElementById('fileLatencyHour').click()">4. Латентность по часам</button>
-  <span class="upload-status" id="stLatencyHour">—</span>
+  <input type="file" id="fileAll" accept=".csv">
+  <button class="upload-btn" onclick="document.getElementById('fileAll').click()">Загрузить all.csv</button>
+  <span class="upload-status" id="stAll">—</span>
 
   <button class="upload-reset" id="resetDemo">сбросить на демо</button>
 </div>
@@ -1190,30 +1178,28 @@ function bindUpload(inputId, statusId, handler) {
   });
 }
 
-bindUpload('fileSummary', 'stSummary', (rows) => {
-  if (rows[0]) {
-    STATE.summary = { ...STATE.summary, ...rows[0] };
-    // Числа из CSV приходят строками — нормализуем числовые поля
+// ── Единый обработчик all.csv ─────────────────────────────────────────
+bindUpload('fileAll', 'stAll', (rows) => {
+  const isNull = (v) => v == null || v === '' || v === 'NULL' || v === 'null';
+  const sec = {};
+  rows.forEach(r => { const s = r._section; if (s) { if (!sec[s]) sec[s] = []; sec[s].push(r); } });
+
+  if (sec.summary?.length) {
+    const r = sec.summary[0];
+    STATE.summary = { ...STATE.summary, ...r };
     Object.keys(STATE.summary).forEach(k => {
       const v = STATE.summary[k];
       if (typeof v === 'string' && v.match(/^-?[\d.]+$/)) STATE.summary[k] = +v;
     });
-    // Фиксируем поля, которых нет в CSV или они пустые/NULL
-    const isNull = (v) => v == null || v === '' || v === 'NULL' || v === 'null';
     const summaryFields = [
-      'total_users','new_users','dau_avg','wau','mau',
-      'total_questions','total_chats','avg_questions_per_user','avg_questions_per_chat',
+      'total_users','new_users_7d','new_users_30d','new_users_90d','dau_avg','wau','mau',
+      'total_questions','total_answers','total_chats','avg_questions_per_user','avg_questions_per_chat',
       'total_tokens','likes','dislikes','total_votes','like_pct',
       'llm_avg_ms','llm_median_ms','llm_p95_ms','rag_avg_ms','ttft_avg_ms','ttft_p95_ms',
       'd1_pct','d7_pct','d30_pct','power_users','stickiness',
       'single_msg_pct','single_msg_chats','error_rate_pct','timeout_rate_pct',
     ];
-    summaryFields.forEach(k => {
-      const v = rows[0][k];
-      STATE.csvNull[k] = isNull(v);
-    });
-    // Retention (значения уже в %, не нужно умножать на 100)
-    const r = rows[0];
+    summaryFields.forEach(k => { STATE.csvNull[k] = isNull(r[k]); });
     STATE.csvNull.d1_retention  = isNull(r.d1_pct);
     STATE.csvNull.d7_retention  = isNull(r.d7_pct);
     STATE.csvNull.d30_retention = isNull(r.d30_pct);
@@ -1223,38 +1209,36 @@ bindUpload('fileSummary', 'stSummary', (rows) => {
     if (!isNull(r.d30_pct))      STATE.mock.d30_retention = +r.d30_pct;
     if (!isNull(r.power_users))  STATE.mock.power_users   = +r.power_users;
     if (!isNull(r.stickiness))   STATE.mock.stickiness_csv = +r.stickiness;
-    // Качество (значения уже в %, не умножаем на 100)
-    STATE.csvNull.single_msg_pct  = isNull(r.single_msg_pct);
-    STATE.csvNull.error_rate      = isNull(r.error_rate_pct);
-    STATE.csvNull.timeout_rate    = isNull(r.timeout_rate_pct);
-    if (!isNull(r.single_msg_pct))   STATE.mock.single_msg_pct    = +r.single_msg_pct;
-    if (!isNull(r.single_msg_chats)) STATE.mock.single_msg_chats  = +r.single_msg_chats || 0;
-    if (!isNull(r.error_rate_pct))   STATE.mock.error_rate         = +r.error_rate_pct;
-    if (!isNull(r.timeout_rate_pct)) STATE.mock.timeout_rate       = +r.timeout_rate_pct;
+    STATE.csvNull.single_msg_pct = isNull(r.single_msg_pct);
+    STATE.csvNull.error_rate     = isNull(r.error_rate_pct);
+    STATE.csvNull.timeout_rate   = isNull(r.timeout_rate_pct);
+    if (!isNull(r.single_msg_pct))   STATE.mock.single_msg_pct   = +r.single_msg_pct;
+    if (!isNull(r.single_msg_chats)) STATE.mock.single_msg_chats = +r.single_msg_chats || 0;
+    if (!isNull(r.error_rate_pct))   STATE.mock.error_rate        = +r.error_rate_pct;
+    if (!isNull(r.timeout_rate_pct)) STATE.mock.timeout_rate      = +r.timeout_rate_pct;
     STATE.source.summary = STATE.source.retention = STATE.source.quality = 'csv';
   }
-});
-bindUpload('fileDaily', 'stDaily', (rows) => {
-  STATE.daily = rows.map(r => ({
-    day: r.day, questions: +r.questions, active_users: +r.active_users,
-    chats: +r.chats, likes: +r.likes, dislikes: +r.dislikes,
-  }));
-  STATE.source.daily = 'csv';
-});
-bindUpload('filePrompts', 'stPrompts', (rows) => {
-  STATE.prompts = rows;
-  // chats_count нужен для skill coverage — помечаем null если колонки нет
-  STATE.csvNull.chats_count = rows.length > 0 && rows[0].chats_count == null;
-  STATE.source.prompts = 'csv';
-});
-bindUpload('fileLatencyHour', 'stLatencyHour', (rows) => {
-  STATE.latencyHour = rows.map(r => ({
-    hour_of_day: +r.hour_of_day,
-    llm_avg_ms: +r.llm_avg_ms,
-    llm_p95_ms: +r.llm_p95_ms,
-    responses_count: +r.responses_count,
-  }));
-  STATE.source.latency = 'csv';
+  if (sec.daily) {
+    STATE.daily = sec.daily.map(r => ({
+      day: r.day, questions: +r.questions, active_users: +r.active_users,
+      chats: +r.chats, likes: +r.likes, dislikes: +r.dislikes,
+    }));
+    STATE.source.daily = 'csv';
+  }
+  if (sec.prompts) {
+    STATE.prompts = sec.prompts;
+    STATE.csvNull.chats_count = false;
+    STATE.source.prompts = 'csv';
+  }
+  if (sec.latency_hour) {
+    STATE.latencyHour = sec.latency_hour.map(r => ({
+      hour_of_day: +r.hour_of_day,
+      llm_avg_ms: +r.llm_avg_ms,
+      llm_p95_ms: +r.llm_p95_ms,
+      responses_count: +r.responses_count,
+    }));
+    STATE.source.latency = 'csv';
+  }
 });
 
 
@@ -1275,9 +1259,7 @@ $('resetDemo')?.addEventListener('click', () => {
   STATE.source  = { summary: 'demo', daily: 'demo', prompts: 'demo', latency: 'demo', retention: 'demo', quality: 'demo' };
   STATE.csvNull = {};
   STATE.qualityRows = [];
-  ['stSummary','stDaily','stPrompts','stLatencyHour'].forEach(id => {
-    $(id).textContent = '—'; $(id).className = 'upload-status';
-  });
+  const stAll2 = $('stAll'); if (stAll2) { stAll2.textContent = '—'; stAll2.className = 'upload-status'; }
   recomputeFiltered();
   renderAll();
 });
@@ -1295,18 +1277,13 @@ if (window.__SNAPSHOT__) {
       hour: '2-digit', minute: '2-digit',
     });
     const sources = meta.sources || {};
-    const csvN = Object.values(sources).filter(s => s === 'csv').length;
-    const labels = { summary: 'Сводка', daily: 'По дням', prompts: 'Промпты', latency: 'Латентность' };
-    const pills = Object.keys(labels).map(k => {
-      const s = sources[k] || 'demo';
-      return `<span class="src-pill ${s === 'csv' ? 'ok' : 'demo'}">${labels[k]}: ${s === 'csv' ? 'CSV' : 'демо'}</span>`;
-    }).join(' ');
+    const allFromCsv = Object.values(sources).every(s => s === 'csv');
     upload.innerHTML = `
       <span class="upload-label">Снапшот от</span>
       <span class="upload-status ok" style="min-width:auto">${dt}</span>
       <span style="width:1px;height:14px;background:var(--line-2);margin:0 6px"></span>
-      ${pills}
-      <span style="margin-left:auto; color:var(--muted); font-family:var(--mono); font-size:11px">${csvN}/4 из CSV · только просмотр</span>`;
+      <span class="src-pill ${allFromCsv ? 'ok' : 'demo'}">all.csv: ${allFromCsv ? 'CSV' : 'частично демо'}</span>
+      <span style="margin-left:auto; color:var(--muted); font-family:var(--mono); font-size:11px">только просмотр</span>`;
   }
   document.getElementById('shareBtn')?.remove();
 }
