@@ -578,17 +578,39 @@ bindUpload('fileSummary', 'stSummary', (rows) => {
       if (typeof v === 'string' && v.match(/^-?[\d.]+$/)) STATE.summary[k] = +v;
     });
     // Фиксируем поля, которых нет в CSV или они пустые/NULL
+    const isNull = (v) => v == null || v === '' || v === 'NULL' || v === 'null';
     const summaryFields = [
       'total_users','new_users','dau_avg','wau','mau',
       'total_questions','total_chats','avg_questions_per_user','avg_questions_per_chat',
       'total_tokens','likes','dislikes','total_votes','like_pct',
       'llm_avg_ms','llm_median_ms','llm_p95_ms','rag_avg_ms','ttft_avg_ms','ttft_p95_ms',
+      'd1_pct','d7_pct','d30_pct','power_users','stickiness',
+      'single_msg_pct','single_msg_chats','error_rate_pct','timeout_rate_pct',
     ];
     summaryFields.forEach(k => {
       const v = rows[0][k];
-      STATE.csvNull[k] = v == null || v === '' || v === 'NULL' || v === 'null';
+      STATE.csvNull[k] = isNull(v);
     });
-    STATE.source.summary = 'csv';
+    // Retention (значения уже в %, не нужно умножать на 100)
+    const r = rows[0];
+    STATE.csvNull.d1_retention  = isNull(r.d1_pct);
+    STATE.csvNull.d7_retention  = isNull(r.d7_pct);
+    STATE.csvNull.d30_retention = isNull(r.d30_pct);
+    STATE.csvNull.power_users   = isNull(r.power_users);
+    if (!isNull(r.d1_pct))       STATE.mock.d1_retention  = +r.d1_pct;
+    if (!isNull(r.d7_pct))       STATE.mock.d7_retention  = +r.d7_pct;
+    if (!isNull(r.d30_pct))      STATE.mock.d30_retention = +r.d30_pct;
+    if (!isNull(r.power_users))  STATE.mock.power_users   = +r.power_users;
+    if (!isNull(r.stickiness))   STATE.mock.stickiness_csv = +r.stickiness;
+    // Качество (значения уже в %, не умножаем на 100)
+    STATE.csvNull.single_msg_pct  = isNull(r.single_msg_pct);
+    STATE.csvNull.error_rate      = isNull(r.error_rate_pct);
+    STATE.csvNull.timeout_rate    = isNull(r.timeout_rate_pct);
+    if (!isNull(r.single_msg_pct))  STATE.mock.single_msg_pct    = +r.single_msg_pct;
+    if (!isNull(r.single_msg_chats)) STATE.mock.single_msg_chats = +r.single_msg_chats || 0;
+    if (!isNull(r.error_rate_pct))   STATE.mock.error_rate        = +r.error_rate_pct;
+    if (!isNull(r.timeout_rate_pct)) STATE.mock.timeout_rate      = +r.timeout_rate_pct;
+    STATE.source.summary = STATE.source.retention = STATE.source.quality = 'csv';
   }
 });
 bindUpload('fileDaily', 'stDaily', (rows) => {
@@ -614,35 +636,6 @@ bindUpload('fileLatencyHour', 'stLatencyHour', (rows) => {
   STATE.source.latency = 'csv';
 });
 
-bindUpload('fileRetention', 'stRetention', (rows) => {
-  const r = rows[0] || {};
-  const isNull = (v) => v == null || v === '' || v === 'NULL' || v === 'null';
-  STATE.csvNull.d1_retention  = isNull(r.d1);
-  STATE.csvNull.d7_retention  = isNull(r.d7);
-  STATE.csvNull.d30_retention = isNull(r.d30);
-  STATE.csvNull.power_users   = isNull(r.power);
-  if (!isNull(r.d1))    STATE.mock.d1_retention  = +r.d1  * 100;
-  if (!isNull(r.d7))    STATE.mock.d7_retention  = +r.d7  * 100;
-  if (!isNull(r.power)) STATE.mock.power_users   = +r.power;
-  if (!isNull(r.stickiness)) STATE.mock.stickiness_csv = +r.stickiness;
-  STATE.source.retention = 'csv';
-});
-
-bindUpload('fileQuality', 'stQuality', (rows) => {
-  if (!rows.length) return;
-  const isNull = (v) => v == null || v === '' || v === 'NULL' || v === 'null';
-  const avg = (k) => rows.reduce((s, r) => s + (+r[k] || 0), 0) / rows.length;
-  STATE.csvNull.single_msg_pct = isNull(rows[0].single_msg_pct);
-  STATE.csvNull.error_rate    = isNull(rows[0].error_rate);
-  STATE.csvNull.timeout_rate  = isNull(rows[0].timeout_rate);
-  if (!STATE.csvNull.single_msg_pct) STATE.mock.single_msg_pct = +rows[0].single_msg_pct;
-  if (!STATE.csvNull.single_msg_pct) STATE.mock.single_msg_chats = +rows[0].single_msg_chats || 0;
-  if (!STATE.csvNull.single_msg_pct) STATE.mock.total_chats_q = +rows[0].total_chats || 0;
-  if (!STATE.csvNull.error_rate)   STATE.mock.error_rate    = avg('error_rate')   * 100;
-  if (!STATE.csvNull.timeout_rate) STATE.mock.timeout_rate  = avg('timeout_rate') * 100;
-  STATE.qualityRows = rows;
-  STATE.source.quality = 'csv';
-});
 
 // ── Период ───────────────────────────────────────────────────────────
 document.querySelectorAll('.period-pill').forEach(p => {
@@ -661,7 +654,7 @@ $('resetDemo')?.addEventListener('click', () => {
   STATE.source  = { summary: 'demo', daily: 'demo', prompts: 'demo', latency: 'demo', retention: 'demo', quality: 'demo' };
   STATE.csvNull = {};
   STATE.qualityRows = [];
-  ['stSummary','stDaily','stPrompts','stLatencyHour','stRetention','stQuality'].forEach(id => {
+  ['stSummary','stDaily','stPrompts','stLatencyHour'].forEach(id => {
     $(id).textContent = '—'; $(id).className = 'upload-status';
   });
   recomputeFiltered();
@@ -682,7 +675,7 @@ if (window.__SNAPSHOT__) {
     });
     const sources = meta.sources || {};
     const csvN = Object.values(sources).filter(s => s === 'csv').length;
-    const labels = { summary: 'Сводка', daily: 'По дням', prompts: 'Промпты', latency: 'Латентность', retention: 'Retention', quality: 'Качество' };
+    const labels = { summary: 'Сводка', daily: 'По дням', prompts: 'Промпты', latency: 'Латентность' };
     const pills = Object.keys(labels).map(k => {
       const s = sources[k] || 'demo';
       return `<span class="src-pill ${s === 'csv' ? 'ok' : 'demo'}">${labels[k]}: ${s === 'csv' ? 'CSV' : 'демо'}</span>`;
@@ -692,7 +685,7 @@ if (window.__SNAPSHOT__) {
       <span class="upload-status ok" style="min-width:auto">${dt}</span>
       <span style="width:1px;height:14px;background:var(--line-2);margin:0 6px"></span>
       ${pills}
-      <span style="margin-left:auto; color:var(--muted); font-family:var(--mono); font-size:11px">${csvN}/6 из CSV · только просмотр</span>`;
+      <span style="margin-left:auto; color:var(--muted); font-family:var(--mono); font-size:11px">${csvN}/4 из CSV · только просмотр</span>`;
   }
   document.getElementById('shareBtn')?.remove();
 }

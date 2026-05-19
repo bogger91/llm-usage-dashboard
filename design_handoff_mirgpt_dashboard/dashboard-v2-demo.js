@@ -92,15 +92,16 @@ window.DEMO = {
     { bucket: "≥ 30с",  count: 19,  share: 4.0 },
   ],
 
-  // Метрики, которых пока нет в SQL — синтетические значения для прототипа
+  // Метрики из mock/demo (заменяются данными из summary.csv)
   mock: {
     d1_retention: 42,         // %
     d7_retention: 28,         // %
     d30_retention: 14,        // %
-    power_users: 7,           // ≥ 20 вопросов / нед
-    single_msg_pct: 38.0,     // % чатов с одним вопросом пользователя
-    single_msg_chats: 46,     // абсолютное кол-во
-    total_chats_q: 121,       // всего чатов за период
+    power_users: 7,
+    stickiness_csv: null,     // заполняется из CSV
+    single_msg_pct: 38.0,     // %
+    single_msg_chats: 46,
+    total_chats_q: 121,
     long_answer_rate: 11,     // % > 800 токенов
     short_answer_rate: 8,     // % < 50 токенов
     top_user_token_share: 19, // %

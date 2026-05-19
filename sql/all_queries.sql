@@ -3,10 +3,16 @@
 --
 -- !! ЗАДАТЬ ПЕРИОД: используйте Ctrl+H в DBeaver и замените даты !!
 --    Текущий период: 2026-04-01 — 2026-12-31
+--
+-- CSV-файлы (4 штуки):
+--   1. summary.csv      — сводка + retention + качество (одна строка)
+--   2. daily.csv        — динамика по дням
+--   3. prompts.csv      — топ промптов
+--   4. latency_hour.csv — латентность по часам
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 1. СВОДКА → экспортировать как: data/summary.csv
+-- 1. СВОДКА (+ retention + качество) → экспортировать как: data/summary.csv
 -- ══════════════════════════════════════════════════════════════════════
 WITH
 users_stats AS (
@@ -84,6 +90,80 @@ latency_stats AS (
     WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
       AND m.role = 'assistant'
       AND m.metadata->>'llmMs' IS NOT NULL
+),
+-- ── Retention ────────────────────────────────────────────────────────
+first_seen AS (
+    SELECT c.user_id, MIN(DATE(m.created_at)) AS d0
+    FROM chats c
+    JOIN messages m ON m.chat_id = c.id
+    WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
+    GROUP BY c.user_id
+),
+returns AS (
+    SELECT f.user_id, f.d0,
+        MAX(CASE WHEN DATE(m.created_at) = f.d0 + 1                             THEN 1 ELSE 0 END) AS d1,
+        MAX(CASE WHEN DATE(m.created_at) BETWEEN f.d0 + 1 AND f.d0 + 7         THEN 1 ELSE 0 END) AS d7,
+        MAX(CASE WHEN DATE(m.created_at) BETWEEN f.d0 + 1 AND f.d0 + 30        THEN 1 ELSE 0 END) AS d30
+    FROM first_seen f
+    JOIN chats c2 ON c2.user_id = f.user_id
+    JOIN messages m ON m.chat_id = c2.id
+    GROUP BY f.user_id, f.d0
+),
+retention_agg AS (
+    SELECT
+        ROUND(AVG(d1)::numeric * 100, 1)                                        AS d1_pct,
+        ROUND(AVG(d7)::numeric * 100, 1)                                        AS d7_pct,
+        ROUND(AVG(d30) FILTER (WHERE d0 <= CURRENT_DATE - 30)::numeric * 100, 1) AS d30_pct
+    FROM returns
+    WHERE d0 BETWEEN '2026-04-01'::date AND '2026-12-31'::date
+),
+power AS (
+    SELECT COUNT(*) AS power_users FROM (
+        SELECT c.user_id
+        FROM chats c
+        JOIN messages m ON m.chat_id = c.id
+        WHERE m.role = 'assistant'
+          AND m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
+        GROUP BY c.user_id
+        HAVING COUNT(*) >= 10 * GREATEST(1,
+            EXTRACT(week FROM AGE('2026-12-31'::timestamptz, '2026-04-01'::timestamptz))
+        )
+    ) t
+),
+stickiness AS (
+    SELECT ROUND(
+        (SELECT COUNT(DISTINCT c.user_id) FROM chats c JOIN messages m ON m.chat_id = c.id
+         WHERE m.created_at >= NOW() - INTERVAL '1 day')::numeric
+        / NULLIF(
+            (SELECT COUNT(DISTINCT c.user_id) FROM chats c JOIN messages m ON m.chat_id = c.id
+             WHERE m.created_at >= NOW() - INTERVAL '30 days'), 0
+        )::numeric, 2
+    ) AS s
+),
+-- ── Качество ─────────────────────────────────────────────────────────
+chats_quality AS (
+    SELECT
+        ROUND(
+            SUM(CASE WHEN message_count <= 2 THEN 1 ELSE 0 END)::numeric
+            / NULLIF(COUNT(*), 0)::numeric * 100, 1
+        )                                                                       AS single_msg_pct,
+        SUM(CASE WHEN message_count <= 2 THEN 1 ELSE 0 END)                    AS single_msg_chats
+    FROM chats
+    WHERE created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
+),
+msg_quality AS (
+    SELECT
+        ROUND(
+            SUM(CASE WHEN role = 'assistant' AND status = 'error' THEN 1 ELSE 0 END)::numeric
+            / NULLIF(SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END), 0)::numeric * 100, 1
+        )                                                                       AS error_rate_pct,
+        ROUND(
+            SUM(CASE WHEN role = 'assistant'
+                      AND (metadata->>'llmMs')::numeric > 30000 THEN 1 ELSE 0 END)::numeric
+            / NULLIF(SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END), 0)::numeric * 100, 1
+        )                                                                       AS timeout_rate_pct
+    FROM messages
+    WHERE created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
 )
 SELECT
     u.total_users, u.new_users, u.dau_avg, u.wau, u.mau,
@@ -91,8 +171,16 @@ SELECT
     a.avg_questions_per_chat, a.total_tokens,
     r.likes, r.dislikes, r.total_votes, r.like_pct,
     l.llm_avg_ms, l.llm_median_ms, l.llm_p95_ms,
-    l.rag_avg_ms, l.ttft_avg_ms, l.ttft_p95_ms
-FROM users_stats u, activity_stats a, ratings_stats r, latency_stats l;
+    l.rag_avg_ms, l.ttft_avg_ms, l.ttft_p95_ms,
+    -- Retention
+    ret.d1_pct, ret.d7_pct, ret.d30_pct,
+    (SELECT power_users FROM power)                                             AS power_users,
+    (SELECT s FROM stickiness)                                                  AS stickiness,
+    -- Качество
+    cq.single_msg_pct, cq.single_msg_chats,
+    mq.error_rate_pct, mq.timeout_rate_pct
+FROM users_stats u, activity_stats a, ratings_stats r, latency_stats l,
+     retention_agg ret, chats_quality cq, msg_quality mq;
 
 
 -- ══════════════════════════════════════════════════════════════════════
@@ -157,104 +245,4 @@ GROUP BY EXTRACT(HOUR FROM m.created_at)
 ORDER BY hour_of_day;
 
 
--- ══════════════════════════════════════════════════════════════════════
--- 5. RETENTION → экспортировать как: data/retention.csv
---    Результат: одна строка (d1, d7, power, stickiness)
---    d1 / d7 возвращаются как доли 0–1, дашборд умножает на 100
--- ══════════════════════════════════════════════════════════════════════
-WITH first_seen AS (
-    -- Первый день активности каждого пользователя за период
-    SELECT c.user_id, MIN(DATE(m.created_at)) AS d0
-    FROM chats c
-    JOIN messages m ON m.chat_id = c.id
-    WHERE m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
-    GROUP BY c.user_id
-),
-returns AS (
-    -- Вернулся ли пользователь на следующий день (D1) и в течение недели (D7)
-    SELECT f.user_id, f.d0,
-        MAX(CASE WHEN DATE(m.created_at) = f.d0 + 1 THEN 1 ELSE 0 END)                    AS d1,
-        MAX(CASE WHEN DATE(m.created_at) BETWEEN f.d0 + 1 AND f.d0 + 7 THEN 1 ELSE 0 END) AS d7
-    FROM first_seen f
-    JOIN chats c2 ON c2.user_id = f.user_id
-    JOIN messages m ON m.chat_id = c2.id
-    GROUP BY f.user_id, f.d0
-),
-power AS (
-    -- Power users: суммарно ≥ 10 ответов на пользователя за каждую неделю периода
-    SELECT COUNT(*) AS power_users FROM (
-        SELECT c.user_id
-        FROM chats c
-        JOIN messages m ON m.chat_id = c.id
-        WHERE m.role = 'assistant'
-          AND m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
-        GROUP BY c.user_id
-        HAVING COUNT(*) >= 10 * GREATEST(1,
-            EXTRACT(week FROM AGE('2026-12-31'::timestamptz, '2026-04-01'::timestamptz))
-        )
-    ) t
-),
-stickiness AS (
-    -- DAU/MAU на дату конца периода
-    SELECT
-        (SELECT COUNT(DISTINCT c.user_id)
-         FROM chats c JOIN messages m ON m.chat_id = c.id
-         WHERE m.created_at >= '2026-12-31'::timestamptz - INTERVAL '1 day'
-           AND m.created_at <  '2026-12-31'::timestamptz)::float
-        / NULLIF(
-            (SELECT COUNT(DISTINCT c.user_id)
-             FROM chats c JOIN messages m ON m.chat_id = c.id
-             WHERE m.created_at >= '2026-12-31'::timestamptz - INTERVAL '30 days'),
-            0
-        ) AS s
-)
-SELECT
-    AVG(d1)::float                      AS d1,
-    AVG(d7)::float                      AS d7,
-    (SELECT power_users FROM power)     AS power,
-    (SELECT s FROM stickiness)          AS stickiness
-FROM returns
-WHERE d0 BETWEEN '2026-04-01'::date AND '2026-12-31'::date;
-
-
--- ══════════════════════════════════════════════════════════════════════
--- 6. КАЧЕСТВО → экспортировать как: data/quality.csv
---    Результат: одна строка
--- ══════════════════════════════════════════════════════════════════════
-WITH chats_stats AS (
-    SELECT
-        ROUND(
-            SUM(CASE WHEN message_count <= 2 THEN 1 ELSE 0 END)::numeric
-            / NULLIF(COUNT(*), 0) * 100,
-            1
-        )                                                                       AS single_msg_pct,
-        SUM(CASE WHEN message_count <= 2 THEN 1 ELSE 0 END)                    AS single_msg_chats,
-        COUNT(*)                                                                AS total_chats
-    FROM chats
-    WHERE created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
-),
-msg_stats AS (
-    SELECT
-        -- Error rate: доля ответов ассистента со статусом ошибки
-        ROUND(
-            SUM(CASE WHEN role = 'assistant' AND status = 'error' THEN 1 ELSE 0 END)::numeric
-            / NULLIF(SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END), 0) * 100,
-            1
-        )                                                                       AS error_rate,
-        -- Timeout rate: доля ответов где llmMs > 30 000 мс
-        ROUND(
-            SUM(CASE WHEN role = 'assistant'
-                      AND (metadata->>'llmMs')::numeric > 30000 THEN 1 ELSE 0 END)::numeric
-            / NULLIF(SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END), 0) * 100,
-            1
-        )                                                                       AS timeout_rate
-    FROM messages
-    WHERE created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
-)
-SELECT
-    c.single_msg_pct,
-    c.single_msg_chats,
-    c.total_chats,
-    m.error_rate,
-    m.timeout_rate
-FROM chats_stats c, msg_stats m;
+-- Запросы 5 (retention) и 6 (качество) объединены в запрос 1 (summary.csv).
