@@ -159,8 +159,8 @@ ORDER BY hour_of_day;
 
 -- ══════════════════════════════════════════════════════════════════════
 -- 5. RETENTION → экспортировать как: data/retention.csv
---    Результат: одна строка (d1, d7, power, stickiness)
---    d1 / d7 возвращаются как доли 0–1, дашборд умножает на 100
+--    Результат: одна строка (d1_pct, d7_pct, power_users, stickiness)
+--    d1_pct / d7_pct возвращаются как проценты 0–100
 -- ══════════════════════════════════════════════════════════════════════
 WITH first_seen AS (
     -- Первый день активности каждого пользователя за период
@@ -208,9 +208,9 @@ stickiness AS (
         ) AS s
 )
 SELECT
-    AVG(d1)::float                      AS d1,
-    AVG(d7)::float                      AS d7,
-    (SELECT power_users FROM power)     AS power,
+    ROUND(AVG(d1)::numeric * 100, 1)    AS d1_pct,
+    ROUND(AVG(d7)::numeric * 100, 1)    AS d7_pct,
+    (SELECT power_users FROM power)     AS power_users,
     (SELECT s FROM stickiness)          AS stickiness
 FROM returns
 WHERE d0 BETWEEN '2026-04-01'::date AND '2026-12-31'::date;
