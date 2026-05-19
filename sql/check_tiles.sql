@@ -154,12 +154,11 @@ SELECT
     ROUND(
         (SELECT COUNT(DISTINCT c.user_id)
          FROM chats c JOIN messages m ON m.chat_id = c.id
-         WHERE m.created_at >= '2026-12-31'::timestamptz - INTERVAL '1 day'
-           AND m.created_at <  '2026-12-31'::timestamptz)::numeric
+         WHERE m.created_at >= NOW() - INTERVAL '1 day')::numeric
         / NULLIF(
             (SELECT COUNT(DISTINCT c.user_id)
              FROM chats c JOIN messages m ON m.chat_id = c.id
-             WHERE m.created_at >= '2026-12-31'::timestamptz - INTERVAL '30 days'),
+             WHERE m.created_at >= NOW() - INTERVAL '30 days'),
             0
         )::numeric,
         2

@@ -617,14 +617,14 @@ bindUpload('fileLatencyHour', 'stLatencyHour', (rows) => {
 bindUpload('fileRetention', 'stRetention', (rows) => {
   const r = rows[0] || {};
   const isNull = (v) => v == null || v === '' || v === 'NULL' || v === 'null';
-  STATE.csvNull.d1_retention  = isNull(r.d1);
-  STATE.csvNull.d7_retention  = isNull(r.d7);
-  STATE.csvNull.d30_retention = isNull(r.d30);
-  STATE.csvNull.power_users   = isNull(r.power);
-  if (!isNull(r.d1))    STATE.mock.d1_retention  = +r.d1  * 100;
-  if (!isNull(r.d7))    STATE.mock.d7_retention  = +r.d7  * 100;
-  if (!isNull(r.power)) STATE.mock.power_users   = +r.power;
-  if (!isNull(r.stickiness)) STATE.mock.stickiness_csv = +r.stickiness;
+  STATE.csvNull.d1_retention  = isNull(r.d1_pct);
+  STATE.csvNull.d7_retention  = isNull(r.d7_pct);
+  STATE.csvNull.d30_retention = isNull(r.d30_pct);
+  STATE.csvNull.power_users   = isNull(r.power_users);
+  if (!isNull(r.d1_pct))      STATE.mock.d1_retention  = +r.d1_pct;
+  if (!isNull(r.d7_pct))      STATE.mock.d7_retention  = +r.d7_pct;
+  if (!isNull(r.power_users)) STATE.mock.power_users   = +r.power_users;
+  if (!isNull(r.stickiness))  STATE.mock.stickiness_csv = +r.stickiness;
   STATE.source.retention = 'csv';
 });
 
