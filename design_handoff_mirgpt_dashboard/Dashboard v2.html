@@ -425,10 +425,10 @@
       <div class="tile-bar" id="tD7Bar"><i></i></div>
       <div class="tile-foot"><span id="tD7Hint">цель ≥ 30%</span></div>
     </div>
-    <div class="tile" data-tip="Пользователи, задающие ≥ 20 вопросов в неделю. Ядро аудитории — те, для кого инструмент стал частью рабочего процесса.">
+    <div class="tile" data-tip="Пользователи, задающие ≥ 10 вопросов в неделю. Ядро аудитории — те, для кого инструмент стал частью рабочего процесса.">
       <div class="tile-label">Power users</div>
       <div class="tile-val"><span id="tPower">—</span></div>
-      <div class="tile-foot"><span id="tPowerHint">≥ 20 вопросов / нед</span></div>
+      <div class="tile-foot"><span id="tPowerHint">≥ 10 вопросов / нед</span></div>
     </div>
     <div class="tile" data-tip="DAU / MAU — отношение среднедневных активных пользователей к месячным. Чем выше, тем чаще люди возвращаются. Норма для рабочих инструментов — 0.20–0.25.">
       <div class="tile-label">Stickiness DAU/MAU</div>
@@ -846,7 +846,7 @@ function renderTiles() {
   setTile('tD30', m.d30_retention, '%', { goal: 15, label: 'цель ≥ 15%' });
   setNoData('tD30', src.retention === 'csv' && n.d30_retention);
   setText('tPower', fmt(m.power_users));
-  setText('tPowerHint', '≥ 20 вопросов / нед');
+  setText('tPowerHint', '≥ 10 вопросов / нед');
   setNoData('tPower', src.retention === 'csv' && n.power_users);
   const stick = (src.retention === 'csv' && STATE.mock.stickiness_csv != null)
     ? STATE.mock.stickiness_csv
@@ -869,7 +869,7 @@ function renderTiles() {
   setNoData('tLD', src.summary === 'csv' && (n.likes || n.dislikes));
 
   setText('tSingleMsg', m.single_msg_pct.toFixed(1));
-  setText('tSingleMsgHint', `${fmt(m.single_msg_chats)} из ${fmt(m.total_chats_q)} чатов`);
+  setText('tSingleMsgHint', `${fmt(m.single_msg_chats)} из ${fmt(m.total_chats_q)} чатов · за все время`);
   setNoData('tSingleMsg', src.quality === 'csv' && n.single_msg_pct);
 
   const msgPerChat = s.total_chats ? (s.total_questions / s.total_chats).toFixed(1) : '—';
