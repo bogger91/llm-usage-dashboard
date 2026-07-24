@@ -131,7 +131,7 @@ SELECT
         / NULLIF(COUNT(m.id) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100)::numeric, 1
     )                                                                           AS dislike_pct
 FROM chats c
-LEFT JOIN skills s ON s.system_prompt = c.system_prompt AND s.tenant_id = c.tenant_id
+LEFT JOIN skills s ON s.system_prompt = c.system_prompt
 LEFT JOIN messages m ON m.chat_id = c.id AND m.role = 'assistant'
 WHERE c.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
 GROUP BY s.name, s.category
