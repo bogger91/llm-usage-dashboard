@@ -131,7 +131,7 @@ SELECT
         / NULLIF(COUNT(m.id) FILTER (WHERE m.feedback_vote IS NOT NULL), 0) * 100)::numeric, 1
     )                                                                           AS dislike_pct
 FROM chats c
-LEFT JOIN skills s ON s.system_prompt = c.system_prompt AND s.tenant_id = c.tenant_id
+LEFT JOIN skills s ON s.system_prompt = c.system_prompt
 LEFT JOIN messages m ON m.chat_id = c.id AND m.role = 'assistant'
 WHERE c.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
 GROUP BY s.name, s.category
@@ -257,3 +257,25 @@ SELECT
     m.error_rate,
     m.timeout_rate
 FROM chats_stats c, msg_stats m;
+
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 7. ФИО пользователей по количеству запросов (убывающий порядок)
+--    Адаптировать имена полей ФИО под реальную схему users:
+--      last_name / first_name / middle_name — если хранятся раздельно
+--      name — если хранится одной строкой
+-- ══════════════════════════════════════════════════════════════════════
+SELECT
+    -- Если ФИО в отдельных колонках:
+    CONCAT_WS(' ', u.last_name, u.first_name, u.middle_name)                   AS full_name,
+    -- Если ФИО в одной колонке — заменить строку выше на: u.name AS full_name
+
+    u.id                                                                        AS user_id,
+    COUNT(m.id)                                                                 AS questions_total
+FROM users u
+JOIN chats c  ON c.user_id = u.id
+JOIN messages m ON m.chat_id = c.id
+WHERE m.role = 'user'
+  AND m.created_at BETWEEN '2026-04-01'::timestamptz AND '2026-12-31'::timestamptz
+GROUP BY u.id, u.last_name, u.first_name, u.middle_name
+ORDER BY questions_total DESC;
