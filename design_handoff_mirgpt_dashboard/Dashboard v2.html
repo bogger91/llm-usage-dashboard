@@ -34,7 +34,7 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
 
-  /* ── HEADER ───────────────────────────────────────────────── */
+  /* ── HEADER ──────────────────────────────── */
   header {
     background: var(--card);
     border-bottom: 1px solid var(--line);
@@ -90,7 +90,7 @@
   body.snapshot-mode .upload-btn { display: none; }
   body.snapshot-mode .upload-reset { display: none; }
 
-  /* ── UPLOAD BAR ───────────────────────────────────────────── */
+  /* ── UPLOAD BAR ──────────────────────────────── */
   .upload {
     border-bottom: 1px solid var(--line);
     background: var(--bg-2);
@@ -112,7 +112,7 @@
   .upload-reset { margin-left: auto; background: transparent; border: none; color: var(--muted); cursor: pointer; font: inherit; font-size: 11px; font-family: var(--mono); }
   .upload-reset:hover { color: var(--ink); }
 
-  /* ── PAGE ─────────────────────────────────────────────────── */
+  /* ── PAGE ──────────────────────────────── */
   main {
     max-width: 1320px; margin: 0 auto;
     padding: 28px 32px 96px;
@@ -136,7 +136,7 @@
   }
   .src-badge.demo { background: var(--bg-2); color: var(--muted); }
 
-  /* ── HERO ─────────────────────────────────────────────────── */
+  /* ── HERO ──────────────────────────────── */
   .hero {
     display: grid;
     grid-template-columns: 1.4fr 1fr 1fr 1fr;
@@ -159,7 +159,7 @@
   .tile-delta.up   { color: var(--good); }
   .hero-spark { height: 28px; margin-top: auto; }
 
-  /* ── TILE GRID ────────────────────────────────────────────── */
+  /* ── TILE GRID ──────────────────────────────── */
   .tiles {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -198,7 +198,7 @@
   .tile-bar > i { display: block; height: 100%; background: var(--accent); }
   .tile-bar > b   { display: block; height: 100%; }
 
-  /* ── TILE TOOLTIP ─────────────────────────────────────────── */
+  /* ── TILE TOOLTIP ──────────────────────────────── */
   .tile-tip-btn {
     position: absolute; top: 8px; right: 8px;
     width: 16px; height: 16px; border-radius: 50%;
@@ -229,7 +229,7 @@
   }
   .tile-tip-btn.open + .tile-tip-popup { display: block; }
 
-  /* ── CHART CARDS ──────────────────────────────────────────── */
+  /* ── CHART CARDS ──────────────────────────────── */
   .charts { display: grid; gap: 12px; }
   .charts.cols-2 { grid-template-columns: 1fr 1fr; }
   .charts.cols-3 { grid-template-columns: 2fr 1fr; }
@@ -248,7 +248,7 @@
   .h-260 { height: 260px; }
   .h-300 { height: 300px; }
 
-  /* ── TABLE ────────────────────────────────────────────────── */
+  /* ── TABLE ──────────────────────────────── */
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th {
     text-align: left; padding: 8px 10px;
@@ -352,7 +352,7 @@
 
 <main>
 
-  <!-- ── HERO ────────────────────────────────────────────────── -->
+  <!-- ── HERO ──────────────────────────────── -->
   <div class="group-head">
     <h2>Главное</h2>
     <span class="rule"></span>
@@ -386,7 +386,7 @@
     </div>
   </div>
 
-  <!-- ── ACTIVATION ──────────────────────────────────────────── -->
+  <!-- ── ACTIVATION ────────────────────────────── -->
   <div class="group-head">
     <h2>Активация и удержание</h2>
     <span class="rule"></span>
@@ -417,7 +417,7 @@
     </div>
   </div>
 
-  <!-- ── QUALITY ─────────────────────────────────────────────── -->
+  <!-- ── QUALITY ────────────────────────────── -->
   <div class="group-head">
     <h2>Качество ответов</h2>
     <span class="rule"></span>
@@ -447,7 +447,7 @@
     </div>
   </div>
 
-  <!-- ── GPU & TOKENS ────────────────────────────────────────── -->
+  <!-- ── GPU & TOKENS ──────────────────────── -->
   <div class="group-head">
     <h2>GPU и токены</h2>
     <span class="rule"></span>
@@ -476,7 +476,7 @@
     </div>
   </div>
 
-  <!-- ── PERFORMANCE ─────────────────────────────────────────── -->
+  <!-- ── PERFORMANCE ──────────────────────── -->
   <div class="group-head">
     <h2>Производительность</h2>
     <span class="rule"></span>
@@ -525,7 +525,7 @@
     </div>
   </div>
 
-  <!-- ── CHARTS: ACTIVITY + FEEDBACK ─────────────────────────── -->
+  <!-- ── CHARTS: ACTIVITY + FEEDBACK ────────────────── -->
   <div class="group-head">
     <h2>Динамика по дням</h2>
     <span class="rule"></span>
@@ -548,7 +548,7 @@
     </div>
   </div>
 
-  <!-- ── CHARTS: LATENCY ─────────────────────────────────────── -->
+  <!-- ── CHARTS: LATENCY ──────────────────────── -->
   <div class="group-head">
     <h2>Латентность · распределение</h2>
     <span class="rule"></span>
@@ -571,7 +571,7 @@
     </div>
   </div>
 
-  <!-- ── PROMPTS ─────────────────────────────────────────────── -->
+  <!-- ── PROMPTS ─────────────────────────── -->
   <div class="group-head">
     <h2>Системные промпты</h2>
     <span class="rule"></span>
@@ -609,7 +609,7 @@
 
 <script src="dashboard-v2-demo.js"></script>
 <script id="mainJs">
-/* ──────────────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────────────
    dashboard-v2.js — рендер нового дашборда МирГПТ
    Источники: window.DEMO (демо) или загруженные CSV (заменяют demo)
    ──────────────────────────────────────────────────────────────────── */
@@ -699,8 +699,7 @@ function recomputeFiltered() {
 
 const charts = {};
 
-// ── Утилиты ──────────────────────────────────────────────────────────
-const $ = (id) => document.getElementById(id);
+// ── Утилиты ──────────────────────────────────────────────────────────────nconst $ = (id) => document.getElementById(id);
 
 const fmt = (n, opts = {}) => {
   if (n == null || n === '' || Number.isNaN(+n)) return '—';
@@ -945,19 +944,49 @@ function makeChart(id, config) {
   charts[id] = new Chart(ctx.getContext('2d'), config);
 }
 
+// Группировка дней по неделям (пн–пт) с усреднением — чтобы был виден тренд без шума выходных
+function aggregateWeekly(days) {
+  const weekdays = days.filter(d => {
+    const dow = new Date(d.day + 'T00:00:00').getDay();
+    return dow !== 0 && dow !== 6;
+  });
+  const weeks = {};
+  weekdays.forEach(d => {
+    const date = new Date(d.day + 'T00:00:00');
+    const monday = new Date(date);
+    monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+    const key = monday.toISOString().slice(0, 10);
+    if (!weeks[key]) weeks[key] = [];
+    weeks[key].push(d);
+  });
+  return Object.keys(weeks).sort().map(key => {
+    const items = weeks[key];
+    const n = items.length;
+    const avg = (field) => items.reduce((s, d) => s + (+d[field] || 0), 0) / n;
+    return {
+      label: key.slice(5),
+      questions: avg('questions'),
+      active_users: avg('active_users'),
+      likes: avg('likes'),
+      dislikes: avg('dislikes'),
+    };
+  });
+}
+
 function renderCharts() {
   const daily = STATE.dailyFiltered;
+  const weekly = aggregateWeekly(daily);
 
-  // 1. Активность по дням
+  // 1. Активность по дням (выходные исключены, среднее по неделе)
   makeChart('chartActivity', {
     type: 'bar',
     data: {
-      labels: daily.map(d => d.day.slice(5)),
+      labels: weekly.map(w => w.label),
       datasets: [
-        { label: 'Вопросы', data: daily.map(d => +d.questions),
+        { label: 'Вопросы (сред. в день, нед.)', data: weekly.map(w => w.questions),
           backgroundColor: C.accentSoft, borderColor: C.accent, borderWidth: 1.5, borderRadius: 3,
           yAxisID: 'y' },
-        { label: 'Активные пользователи', data: daily.map(d => +d.active_users),
+        { label: 'Активные пользователи (сред. в день, нед.)', data: weekly.map(w => w.active_users),
           type: 'line', borderColor: C.good, backgroundColor: 'transparent',
           pointRadius: 2.5, pointBackgroundColor: C.good, tension: .3, yAxisID: 'y1' },
       ],
@@ -971,18 +1000,18 @@ function renderCharts() {
     },
   });
 
-  // 2. Feedback по дням + feedback rate
+  // 2. Feedback по неделям (выходные исключены) + feedback rate
   makeChart('chartFeedback', {
     type: 'bar',
     data: {
-      labels: daily.map(d => d.day.slice(5)),
+      labels: weekly.map(w => w.label),
       datasets: [
-        { label: 'Лайки',    data: daily.map(d => +d.likes),
+        { label: 'Лайки',    data: weekly.map(w => w.likes),
           backgroundColor: C.goodSoft, borderColor: C.good, borderWidth: 1.5, stack: 'v', yAxisID: 'y' },
-        { label: 'Дизлайки', data: daily.map(d => +d.dislikes),
+        { label: 'Дизлайки', data: weekly.map(w => w.dislikes),
           backgroundColor: C.warnSoft, borderColor: C.warn, borderWidth: 1.5, stack: 'v', yAxisID: 'y' },
         { label: 'Feedback rate, %',
-          data: daily.map(d => d.questions ? ((+d.likes + +d.dislikes) / +d.questions) * 100 : 0),
+          data: weekly.map(w => w.questions ? ((w.likes + w.dislikes) / w.questions) * 100 : 0),
           type: 'line', borderColor: C.accent, backgroundColor: 'transparent',
           pointRadius: 2, tension: .3, yAxisID: 'y1', borderDash: [4, 3] },
       ],
