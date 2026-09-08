@@ -336,19 +336,49 @@ function makeChart(id, config) {
   charts[id] = new Chart(ctx.getContext('2d'), config);
 }
 
+// Группировка дней по неделям (пн–пт) с усреднением — чтобы был виден тренд без шума выходных
+function aggregateWeekly(days) {
+  const weekdays = days.filter(d => {
+    const dow = new Date(d.day + 'T00:00:00').getDay();
+    return dow !== 0 && dow !== 6;
+  });
+  const weeks = {};
+  weekdays.forEach(d => {
+    const date = new Date(d.day + 'T00:00:00');
+    const monday = new Date(date);
+    monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+    const key = monday.toISOString().slice(0, 10);
+    if (!weeks[key]) weeks[key] = [];
+    weeks[key].push(d);
+  });
+  return Object.keys(weeks).sort().map(key => {
+    const items = weeks[key];
+    const n = items.length;
+    const avg = (field) => items.reduce((s, d) => s + (+d[field] || 0), 0) / n;
+    return {
+      label: key.slice(5),
+      questions: avg('questions'),
+      active_users: avg('active_users'),
+      likes: avg('likes'),
+      dislikes: avg('dislikes'),
+    };
+  });
+}
+
 function renderCharts() {
   const daily = STATE.dailyFiltered;
+  const weekly = aggregateWeekly(daily);
 
-  // 1. Активность по дням
+  // 1. Активность по дням (выходные исключены, среднее по неделе)
   makeChart('chartActivity', {
     type: 'bar',
     data: {
-      labels: daily.map(d => d.day.slice(5)),
+      labels: weekly.map(w => w.label),
       datasets: [
-        { label: 'Вопросы', data: daily.map(d => +d.questions),
+        { label: 'Вопросы (сред. в день, нед.)', data: weekly.map(w => w.questions),
           backgroundColor: C.accentSoft, borderColor: C.accent, borderWidth: 1.5, borderRadius: 3,
           yAxisID: 'y' },
-        { label: 'Активные пользователи', data: daily.map(d => +d.active_users),
+        { label: 'Активные пользователи (сред. в день, нед.)', data: weekly.map(w => w.active_users),
           type: 'line', borderColor: C.good, backgroundColor: 'transparent',
           pointRadius: 2.5, pointBackgroundColor: C.good, tension: .3, yAxisID: 'y1' },
       ],
@@ -362,18 +392,18 @@ function renderCharts() {
     },
   });
 
-  // 2. Feedback по дням + feedback rate
+  // 2. Feedback по неделям (выходные исключены) + feedback rate
   makeChart('chartFeedback', {
     type: 'bar',
     data: {
-      labels: daily.map(d => d.day.slice(5)),
+      labels: weekly.map(w => w.label),
       datasets: [
-        { label: 'Лайки',    data: daily.map(d => +d.likes),
+        { label: 'Лайки',    data: weekly.map(w => w.likes),
           backgroundColor: C.goodSoft, borderColor: C.good, borderWidth: 1.5, stack: 'v', yAxisID: 'y' },
-        { label: 'Дизлайки', data: daily.map(d => +d.dislikes),
+        { label: 'Дизлайки', data: weekly.map(w => w.dislikes),
           backgroundColor: C.warnSoft, borderColor: C.warn, borderWidth: 1.5, stack: 'v', yAxisID: 'y' },
         { label: 'Feedback rate, %',
-          data: daily.map(d => d.questions ? ((+d.likes + +d.dislikes) / +d.questions) * 100 : 0),
+          data: weekly.map(w => w.questions ? ((w.likes + w.dislikes) / w.questions) * 100 : 0),
           type: 'line', borderColor: C.accent, backgroundColor: 'transparent',
           pointRadius: 2, tension: .3, yAxisID: 'y1', borderDash: [4, 3] },
       ],
